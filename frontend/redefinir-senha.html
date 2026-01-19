@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nova Senha - SICASV</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background: linear-gradient(135deg, #1e293b 0%, #343a40 100%); height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .card-reset { width: 100%; max-width: 400px; border: none; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        .card-header { background-color: transparent; border-bottom: none; padding-top: 30px; text-align: center; }
+        .btn-success { background-color: #198754; border: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="card card-reset">
+        <div class="card-header">
+            <h3 class="text-success"><i class="fas fa-key"></i> Nova Senha</h3>
+            <p class="text-muted small mb-0">Crie uma nova senha segura para seu acesso.</p>
+        </div>
+        <div class="card-body p-4">
+            <form id="formRedefinir">
+                <div class="mb-3">
+                    <label class="form-label">Nova Senha</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="novaSenha" required minlength="8">
+                        <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('novaSenha', this)"><i class="fas fa-eye"></i></button>
+                    </div>
+                    <div class="form-text small"><i class="fas fa-info-circle"></i> Mínimo de 8 caracteres (letras e números).</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Confirmar Senha</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="confirmaSenha" required minlength="8">
+                        <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('confirmaSenha', this)"><i class="fas fa-eye"></i></button>
+                    </div>
+                </div>
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-success" id="btnSalvar">Redefinir Senha</button>
+                </div>
+            </form>
+            <div id="mensagem" class="mt-3 text-center" style="display: none;"></div>
+            <div id="linkLogin" class="mt-3 text-center" style="display: none;">
+                <a href="login.html" class="btn btn-outline-primary w-100">Ir para Login</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Pega o token da URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+
+        if (!token) {
+            document.getElementById('formRedefinir').innerHTML = '<div class="alert alert-danger">Link inválido ou incompleto.</div>';
+        }
+
+        function togglePassword(inputId, btn) {
+            const input = document.getElementById(inputId);
+            const icon = btn.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        document.getElementById('formRedefinir').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const novaSenha = document.getElementById('novaSenha').value;
+            const confirmaSenha = document.getElementById('confirmaSenha').value;
+            const btn = document.getElementById('btnSalvar');
+            const msg = document.getElementById('mensagem');
+
+            // Validação de Força de Senha
+            const regexForca = /^(?=.*[a-zA-Z])(?=.*[0-9]).{8,}$/;
+            if (!regexForca.test(novaSenha)) {
+                alert('A senha deve conter no mínimo 8 caracteres, incluindo letras e números.');
+                return;
+            }
+
+            if (novaSenha !== confirmaSenha) {
+                alert('As senhas não conferem.');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+            msg.style.display = 'none';
+
+            try {
+                const response = await fetch('http://localhost:3000/api/auth/redefinir-senha', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token, novaSenha })
+                });
+                
+                const result = await response.json();
+                
+                msg.style.display = 'block';
+                if (response.ok) {
+                    msg.className = 'mt-3 text-center text-success fw-bold';
+                    msg.innerHTML = `<i class="fas fa-check-circle"></i> ${result.message}`;
+                    document.getElementById('formRedefinir').style.display = 'none';
+                    document.getElementById('linkLogin').style.display = 'block';
+                } else {
+                    msg.className = 'mt-3 text-center text-danger';
+                    msg.innerText = result.error || 'Erro ao redefinir.';
+                    btn.disabled = false;
+                    btn.innerText = 'Redefinir Senha';
+                }
+            } catch (error) {
+                msg.style.display = 'block';
+                msg.className = 'mt-3 text-center text-danger';
+                msg.innerText = 'Erro de conexão.';
+                btn.disabled = false;
+                btn.innerText = 'Redefinir Senha';
+            }
+        });
+    </script>
+</body>
+</html>

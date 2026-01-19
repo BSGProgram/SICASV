@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SICASV - Cadastro de Servidores</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: var(--bs-body-bg); transition: background-color 0.3s; }
+        .header-sicasv { background: linear-gradient(to right, #0056b3, #004494); color: white; padding: 25px 0; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); position: relative; }
+        .card-section { border: none; box-shadow: 0 5px 15px rgba(0,0,0,0.05); margin-bottom: 20px; border-radius: 0.8rem; overflow: hidden; }
+        .card-header { background-color: rgba(0,0,0,0.03); font-weight: bold; border-bottom: 1px solid rgba(0,0,0,0.05); padding: 15px 20px; }
+        .btn-custom { background-color: #0056b3; color: white; }
+        .btn-custom:hover { background-color: #004494; color: white; }
+        .theme-toggle-btn { position: absolute; top: 20px; right: 20px; color: white; border: 1px solid rgba(255,255,255,0.3); }
+    </style>
+</head>
+<body>
+
+    <header class="header-sicasv text-center">
+        <div class="container">
+            <h1><i class="fas fa-id-card"></i> SICASV</h1>
+            <p class="mb-0">Sistema de Cadastro dos Servidores de Venturosa</p>
+        </div>
+        <button class="btn btn-sm rounded-circle theme-toggle-btn" onclick="toggleTheme()" id="btnTheme" title="Alternar Tema"><i class="fas fa-moon"></i></button>
+    </header>
+
+    <div class="container mb-5">
+        <div class="alert alert-info shadow-sm mb-4" role="alert">
+            <h5 class="alert-heading"><i class="fas fa-info-circle"></i> Observações de Preenchimento</h5>
+            <ul class="mb-0">
+                <li>Preencha as 3 abas (Dados Pessoais, Documentos e Dados do Ato de Admissão) antes de salvar o cadastro.</li>
+                <li>Certifique-se de que todos os campos obrigatórios estão preenchidos corretamente.</li>
+                <li>Verifique se as datas inseridas são válidas e coerentes (ex: data de admissão posterior ao nascimento).</li>
+                <li>Para dependentes, lembre-se de clicar no botão "Adicionar" para incluí-los na lista antes de salvar.</li>
+            </ul>
+        </div>
+        <form id="formCadastro" class="needs-validation" novalidate>
+            <input type="hidden" id="titularId">
+            
+            <!-- 1. DADOS DO TITULAR -->
+            <div class="card card-section">
+                <div class="card-header text-primary"><i class="fas fa-user me-2"></i> Dados do Titular</div>
+                <div class="card-body">
+                    <ul class="nav nav-tabs mb-3" id="titularTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="pessoais-tab" data-bs-toggle="tab" data-bs-target="#pessoais" type="button" role="tab" aria-controls="pessoais" aria-selected="true">Dados Pessoais</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="documentos-tab" data-bs-toggle="tab" data-bs-target="#documentos" type="button" role="tab" aria-controls="documentos" aria-selected="false">Documentos</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="admissao-tab" data-bs-toggle="tab" data-bs-target="#admissao" type="button" role="tab" aria-controls="admissao" aria-selected="false">Dados do Ato de Admissão</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content" id="titularTabsContent">
+                        <!-- ABA 1: DADOS PESSOAIS -->
+                        <div class="tab-pane fade show active" id="pessoais" role="tabpanel" aria-labelledby="pessoais-tab">
+                            <div class="row g-3">
+                                <!-- Foto de Perfil -->
+                                <div class="col-12 d-flex justify-content-center mb-3">
+                                    <div class="text-center">
+                                        <img id="previewFoto" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23eee'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%23aaa'%3ESem Foto%3C/text%3E%3C/svg%3E" class="img-thumbnail rounded-circle" style="width: 150px; height: 150px; object-fit: cover;">
+                                        <div class="mt-2">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('inputFoto').click()"><i class="fas fa-camera"></i> Alterar Foto</button>
+                                            <input type="file" id="inputFoto" class="d-none" accept="image/*" onchange="processarFoto(this, 'previewFoto')">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Identificação -->
+                                <div class="col-12"><h6 class="text-primary border-bottom pb-2">Identificação</h6></div>
+                                <div class="col-md-12">
+                                    <label for="nomeTitular" class="form-label">Nome Completo</label>
+                                    <input type="text" class="form-control" id="nomeTitular" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="dataNascTitular" class="form-label">Data de Nascimento</label>
+                                    <input type="date" class="form-control" id="dataNascTitular" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="sexo" class="form-label">Sexo</label>
+                                    <select class="form-select" id="sexo">
+                                        <option value="">Selecione</option>
+                                        <option value="Masculino">Masculino</option>
+                                        <option value="Feminino">Feminino</option>
+                                        <option value="Outro">Outro</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="raca" class="form-label">Raça/Cor</label>
+                                    <select class="form-select" id="raca">
+                                        <option value="">Selecione</option>
+                                        <option value="Branca">Branca</option>
+                                        <option value="Preta">Preta</option>
+                                        <option value="Parda">Parda</option>
+                                        <option value="Amarela">Amarela</option>
+                                        <option value="Indígena">Indígena</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="estadoCivil" class="form-label">Estado Civil</label>
+                                    <select class="form-select" id="estadoCivil">
+                                        <option value="">Selecione</option>
+                                        <option value="Solteiro(a)">Solteiro(a)</option>
+                                        <option value="Casado(a)">Casado(a)</option>
+                                        <option value="Divorciado(a)">Divorciado(a)</option>
+                                        <option value="Viúvo(a)">Viúvo(a)</option>
+                                        <option value="União Estável">União Estável</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="grauInstrucao" class="form-label">Grau de Instrução</label>
+                                    <select class="form-select" id="grauInstrucao">
+                                        <option value="">Selecione</option>
+                                        <option value="Fundamental">Fundamental</option>
+                                        <option value="Médio">Médio</option>
+                                        <option value="Superior">Superior</option>
+                                        <option value="Pós-Graduação">Pós-Graduação</option>
+                                    </select>
+                                </div>
+
+                                <!-- Filiação -->
+                                <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-2">Filiação</h6></div>
+                                <div class="col-md-6">
+                                    <label for="nomePai" class="form-label">Nome do Pai</label>
+                                    <input type="text" class="form-control" id="nomePai">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="nomeMae" class="form-label">Nome da Mãe</label>
+                                    <input type="text" class="form-control" id="nomeMae">
+                                </div>
+
+                                <!-- Contato -->
+                                <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-2">Contato</h6></div>
+                                <div class="col-md-4">
+                                    <label for="email" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="email">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="telefone" class="form-label">Telefone</label>
+                                    <input type="text" class="form-control" id="telefone" maxlength="15" oninput="mascaraTelefone(this)">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="celular" class="form-label">Celular</label>
+                                    <input type="text" class="form-control" id="celular" maxlength="15" oninput="mascaraTelefone(this)">
+                                </div>
+
+                                <!-- Endereço e Origem -->
+                                <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-2">Endereço e Origem</h6></div>
+                                <div class="col-md-2">
+                                    <label for="cep" class="form-label">CEP <span id="cepLoading" class="spinner-border spinner-border-sm text-primary ms-2" style="display: none;" role="status"></span></label>
+                                    <input type="text" class="form-control" id="cep" maxlength="9" oninput="mascaraCEP(this)" onblur="consultarCEP(this)">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="endereco" class="form-label">Endereço</label>
+                                    <input type="text" class="form-control" id="endereco">
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="numero" class="form-label">Número</label>
+                                    <input type="text" class="form-control" id="numero">
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="bairro" class="form-label">Bairro</label>
+                                    <input type="text" class="form-control" id="bairro">
+                                </div>
+                                <div class="col-md-10">
+                                    <label for="cidade" class="form-label">Cidade</label>
+                                    <input type="text" class="form-control" id="cidade">
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="uf" class="form-label">UF</label>
+                                    <input type="text" class="form-control" id="uf" maxlength="2">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="nacionalidade" class="form-label">Nacionalidade</label>
+                                    <input type="text" class="form-control" id="nacionalidade">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="naturalidade" class="form-label">Naturalidade</label>
+                                    <input type="text" class="form-control" id="naturalidade">
+                                </div>
+
+                                <!-- Dados do Cônjuge -->
+                                <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-2">Dados do Cônjuge</h6></div>
+                                <div class="col-12">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="temConjuge" onchange="toggleConjuge()">
+                                        <label class="form-check-label" for="temConjuge">Possui Cônjuge?</label>
+                                    </div>
+                                </div>
+                                <div class="col-12" id="areaConjuge" style="display: none;">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label for="nomeConjuge" class="form-label">Nome do Cônjuge</label>
+                                            <input type="text" class="form-control" id="nomeConjuge">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="cpfConjuge" class="form-label">CPF do Cônjuge</label>
+                                            <input type="text" class="form-control" id="cpfConjuge" placeholder="000.000.000-00" maxlength="14" oninput="mascaraCPF(this)" onblur="validarInputCPF(this)">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="dataNascConjuge" class="form-label">Data de Nascimento</label>
+                                            <input type="date" class="form-control" id="dataNascConjuge">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Dependentes -->
+                                <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-2">Dependentes</h6></div>
+                                <div class="col-12">
+                                    <div class="row g-3 align-items-end mb-3 p-3 bg-light border rounded">
+                                        <div class="col-md-3">
+                                            <label for="nomeDep" class="form-label">Nome do Dependente</label>
+                                            <input type="text" class="form-control" id="nomeDep">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="cpfDep" class="form-label">CPF</label>
+                                            <input type="text" class="form-control" id="cpfDep" placeholder="000.000.000-00" maxlength="14" oninput="mascaraCPF(this)" onblur="validarInputCPF(this)">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label for="parentescoDep" class="form-label">Parentesco</label>
+                                            <select class="form-select" id="parentescoDep">
+                                                <option value="Filho(a)">Filho(a)</option>
+                                                <option value="Pai/Mãe">Pai/Mãe</option>
+                                                <option value="Outro">Outro</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label for="dataNascDep" class="form-label">Data Nasc.</label>
+                                            <input type="date" class="form-control" id="dataNascDep">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="button" class="btn btn-success w-100" onclick="adicionarDependente()">
+                                                <i class="fas fa-plus"></i> Adicionar
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="table-responsive">
+                                        <table class="table table-hover" id="tabelaDependentes">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>Nome</th>
+                                                    <th>CPF</th>
+                                                    <th>Parentesco</th>
+                                                    <th>Data de Nascimento</th>
+                                                    <th>Ação</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                        <div id="msgSemDependentes" class="text-center text-muted py-3">Nenhum dependente adicionado.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- ABA 2: DOCUMENTOS -->
+                        <div class="tab-pane fade" id="documentos" role="tabpanel" aria-labelledby="documentos-tab">
+                            <div class="row g-3">
+                                <!-- RG e CPF -->
+                                <div class="col-12"><h6 class="text-primary border-bottom pb-2">Documentos de Identificação</h6></div>
+                                <div class="col-md-3">
+                                    <label for="cpfTitular" class="form-label">CPF</label>
+                                    <input type="text" class="form-control" id="cpfTitular" placeholder="000.000.000-00" required maxlength="14" oninput="mascaraCPF(this)" onblur="validarInputCPF(this)">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="rgTitular" class="form-label">RG</label>
+                                    <input type="text" class="form-control" id="rgTitular">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="dataEmissaoRg" class="form-label">Data Emissão RG</label>
+                                    <input type="date" class="form-control" id="dataEmissaoRg">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="orgaoEmissorRg" class="form-label">Órgão Emissor</label>
+                                    <input type="text" class="form-control" id="orgaoEmissorRg">
+                                </div>
+
+                                <!-- Carteira de Trabalho -->
+                                <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-2">Carteira de Trabalho (CTPS)</h6></div>
+                                <div class="col-md-3">
+                                    <label for="numCtps" class="form-label">Número</label>
+                                    <input type="text" class="form-control" id="numCtps">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="serieCtps" class="form-label">Série</label>
+                                    <input type="text" class="form-control" id="serieCtps">
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="ufCtps" class="form-label">UF</label>
+                                    <input type="text" class="form-control" id="ufCtps" maxlength="2">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="dataEmissaoCtps" class="form-label">Data de Emissão</label>
+                                    <input type="date" class="form-control" id="dataEmissaoCtps">
+                                </div>
+
+                                <!-- Título de Eleitor -->
+                                <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-2">Título de Eleitor</h6></div>
+                                <div class="col-md-4">
+                                    <label for="numTitulo" class="form-label">Número do Título</label>
+                                    <input type="text" class="form-control" id="numTitulo">
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="zonaTitulo" class="form-label">Zona</label>
+                                    <input type="text" class="form-control" id="zonaTitulo">
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="secaoTitulo" class="form-label">Seção</label>
+                                    <input type="text" class="form-control" id="secaoTitulo">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="cidadeUfTitulo" class="form-label">Cidade/UF</label>
+                                    <input type="text" class="form-control" id="cidadeUfTitulo">
+                                </div>
+
+                                <!-- Outros Documentos -->
+                                <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-2">Outros Documentos</h6></div>
+                                <div class="col-md-3">
+                                    <label for="numPis" class="form-label">PIS/PASEP</label>
+                                    <input type="text" class="form-control" id="numPis">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="dataEmissaoPis" class="form-label">Data Emissão PIS</label>
+                                    <input type="date" class="form-control" id="dataEmissaoPis">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="cnh" class="form-label">CNH</label>
+                                    <input type="text" class="form-control" id="cnh">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="registroProfissional" class="form-label">Registro Profissional</label>
+                                    <input type="text" class="form-control" id="registroProfissional">
+                                </div>
+
+                                <!-- Comprovantes / Upload -->
+                                <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-2">Comprovantes Digitalizados</h6></div>
+                                <div class="col-12">
+                                    <div class="alert alert-warning d-flex align-items-center shadow-sm" role="alert">
+                                        <i class="fas fa-exclamation-triangle me-3 fa-2x"></i>
+                                        <div>
+                                            <strong>Atenção:</strong> Insira os documentos que tiveram algum tipo de alteração, para que seja realizada a atualização do sistema da prefeitura.
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="inputAnexos" class="form-label fw-bold">Selecione os arquivos (PDF, Imagens)</label>
+                                        <input class="form-control" type="file" id="inputAnexos" multiple accept="image/*,application/pdf" onchange="processarAnexos(this)">
+                                    </div>
+                                    <div id="listaAnexos" class="list-group"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- ABA 3: DADOS DO ATO DE ADMISSÃO -->
+                        <div class="tab-pane fade" id="admissao" role="tabpanel" aria-labelledby="admissao-tab">
+                            <div class="row g-3">
+                                <!-- Detalhes da Admissão -->
+                                <div class="col-12"><h6 class="text-primary border-bottom pb-2">Detalhes da Admissão</h6></div>
+                                <div class="col-md-2">
+                                    <label for="matricula" class="form-label">Matrícula</label>
+                                    <input type="text" class="form-control" id="matricula" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="tipoAdmissao" class="form-label">Tipo de Admissão</label>
+                                    <select class="form-select" id="tipoAdmissao">
+                                        <option value="">Selecione</option>
+                                        <option value="Concurso Público">Concurso Público</option>
+                                        <option value="Processo Seletivo">Processo Seletivo</option>
+                                        <option value="Nomeação">Nomeação</option>
+                                        <option value="Contrato">Contrato</option>
+                                        <option value="Outro">Outro</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="dataAdmissao" class="form-label">Data de Admissão</label>
+                                    <input type="date" class="form-control" id="dataAdmissao">
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="tempoServico" class="form-label">Tempo de Serviço</label>
+                                    <input type="text" class="form-control" id="tempoServico" readonly>
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="numPortaria" class="form-label">Nº da Portaria</label>
+                                    <input type="text" class="form-control" id="numPortaria">
+                                </div>
+
+                                <!-- Cargo e Remuneração -->
+                                <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-2">Cargo e Remuneração</h6></div>
+                                <div class="col-md-3">
+                                    <label for="tipoCargo" class="form-label">Tipo de Cargo</label>
+                                    <select class="form-select" id="tipoCargo">
+                                        <option value="">Selecione</option>
+                                        <option value="Efetivo">Efetivo</option>
+                                        <option value="Comissionado">Comissionado</option>
+                                        <option value="Temporário">Temporário</option>
+                                        <option value="Eletivo">Eletivo</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="cargo" class="form-label">Cargo/Função</label>
+                                    <input type="text" class="form-control" id="cargo" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="regimeTrabalho" class="form-label">Regime de Trabalho</label>
+                                    <input type="text" class="form-control" id="regimeTrabalho">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="salarioBase" class="form-label">Salário Base (R$)</label>
+                                    <input type="text" class="form-control" id="salarioBase" placeholder="R$ 0,00" oninput="mascaraMoeda(this)">
+                                </div>
+
+                                <!-- Lotação e Localização -->
+                                <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-2">Lotação e Localização</h6></div>
+                                <div class="col-md-4">
+                                    <label for="secretaria" class="form-label">Secretaria</label>
+                                    <input type="text" class="form-control" id="secretaria">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="setor" class="form-label">Setor</label>
+                                    <input type="text" class="form-control" id="setor">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="unidadeTrabalho" class="form-label">Unidade de Trabalho (UTB)</label>
+                                    <input type="text" class="form-control" id="unidadeTrabalho">
+                                </div>
+                                <div class="col-md-12">
+                                    <label for="lotacao" class="form-label">Lotação</label>
+                                    <input type="text" class="form-control" id="lotacao">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <button type="button" class="btn btn-secondary btn-lg me-2" onclick="salvarRascunho()">Salvar Rascunho</button>
+                <button type="submit" class="btn btn-custom btn-lg">Salvar Cadastro</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Modal Visualizar Anexo -->
+    <div class="modal fade" id="modalVisualizarAnexo" tabindex="-1">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" style="height: 90%;">
+            <div class="modal-content" style="height: 100%;">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="tituloVisualizacao">Visualização de Documento</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0 d-flex justify-content-center align-items-center bg-light" id="corpoVisualizacao" style="overflow: hidden;">
+                    <!-- Conteúdo carregado via JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Progresso -->
+    <div class="modal fade" id="modalProgresso" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center">
+                    <h5 class="mb-3">Processando arquivos...</h5>
+                    <div class="progress">
+                        <div id="barraProgresso" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <small id="textoProgresso" class="text-muted mt-2 d-block">Aguarde enquanto otimizamos seus documentos.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Theme Logic
+        const toggleTheme = () => {
+            const currentTheme = document.documentElement.getAttribute('data-bs-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-bs-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateIcon(newTheme);
+        }
+
+        const updateIcon = (theme) => {
+            const icon = document.querySelector('#btnTheme i');
+            if(icon) {
+                icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+        }
+
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-bs-theme', savedTheme);
+        document.addEventListener('DOMContentLoaded', () => updateIcon(savedTheme));
+
+        const PLACEHOLDER_FOTO = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23eee'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%23aaa'%3ESem Foto%3C/text%3E%3C/svg%3E";
+        let listaAnexos = [];
+        const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+        const MAX_TOTAL_SIZE = 25 * 1024 * 1024; // 25MB Limite Total
+
+        // Verifica se há solicitação de retomada de cadastro via URL
+        document.addEventListener('DOMContentLoaded', async () => {
+            const params = new URLSearchParams(window.location.search);
+            const cpf = params.get('cpf');
+            if (cpf) {
+                await carregarRascunho(cpf);
+            }
+        });
+
+        async function carregarRascunho(cpf) {
+            try {
+                // Tenta buscar o cadastro pelo CPF (Endpoint hipotético para rascunho/busca pública)
+                const cpfLimpo = cpf.replace(/\D/g, '');
+                const response = await fetch(`http://localhost:3000/api/cadastro/${cpfLimpo}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    preencherFormulario(data);
+                    alert('Cadastro localizado! Os dados foram carregados para continuação.');
+                } else {
+                    if(response.status === 404) {
+                        alert('Nenhum cadastro ou rascunho encontrado para o CPF informado.');
+                    } else {
+                        console.error('Erro ao buscar dados');
+                    }
+                }
+            } catch (error) {
+                console.error('Erro de conexão ao buscar rascunho:', error);
+            }
+        }
+
+        function preencherFormulario(data) {
+            // Mapeamento de campos (Dados do Titular)
+            const map = {
+                'titularId': data.id,
+                'nomeTitular': data.nome,
+                'dataNascTitular': data.dataNasc,
+                'cpfTitular': data.cpf,
+                'rgTitular': data.rg,
+                'dataEmissaoRg': data.dataEmissaoRg,
+                'orgaoEmissorRg': data.orgaoEmissorRg,
+                'numCtps': data.numCtps,
+                'serieCtps': data.serieCtps,
+                'ufCtps': data.ufCtps,
+                'dataEmissaoCtps': data.dataEmissaoCtps,
+                'numTitulo': data.numTitulo,
+                'zonaTitulo': data.zonaTitulo,
+                'secaoTitulo': data.secaoTitulo,
+                'cidadeUfTitulo': data.cidadeUfTitulo,
+                'numPis': data.numPis,
+                'dataEmissaoPis': data.dataEmissaoPis,
+                'cnh': data.cnh,
+                'registroProfissional': data.registroProfissional,
+                'sexo': data.sexo,
+                'raca': data.raca,
+                'estadoCivil': data.estadoCivil,
+                'grauInstrucao': data.grauInstrucao,
+                'nomePai': data.nomePai,
+                'nomeMae': data.nomeMae,
+                'email': data.email,
+                'telefone': data.telefone,
+                'celular': data.celular,
+                'cep': data.cep,
+                'endereco': data.endereco,
+                'numero': data.numero,
+                'bairro': data.bairro,
+                'cidade': data.cidade,
+                'uf': data.uf,
+                'nacionalidade': data.nacionalidade,
+                'naturalidade': data.naturalidade,
+                'matricula': data.matricula,
+                'tipoAdmissao': data.tipoAdmissao,
+                'dataAdmissao': data.dataAdmissao,
+                'numPortaria': data.numPortaria,
+                'tipoCargo': data.tipoCargo,
+                'cargo': data.cargo,
+                'regimeTrabalho': data.regimeTrabalho,
+                'secretaria': data.secretaria,
+                'setor': data.setor,
+                'unidadeTrabalho': data.unidadeTrabalho,
+                'lotacao': data.lotacao
+            };
+
+            for (const [id, value] of Object.entries(map)) {
+                const el = document.getElementById(id);
+                if (el) el.value = value || '';
+            }
+
+            if (data.salarioBase) {
+                mascaraMoeda(document.getElementById('salarioBase'), data.salarioBase);
+            }
+
+            // Foto de Perfil
+            if (data.foto_perfil) {
+                document.getElementById('previewFoto').src = data.foto_perfil;
+            }
+
+            // Cônjuge
+            if (data.conjuge && data.conjuge.temConjuge) {
+                document.getElementById('temConjuge').checked = true;
+                toggleConjuge();
+                document.getElementById('nomeConjuge').value = data.conjuge.nome || '';
+                document.getElementById('cpfConjuge').value = data.conjuge.cpf || '';
+                document.getElementById('dataNascConjuge').value = data.conjuge.dataNasc || '';
+            }
+
+            // Dependentes
+            const tbody = document.querySelector('#tabelaDependentes tbody');
+            tbody.innerHTML = ''; // Limpa antes de adicionar
+            if (data.dependentes && data.dependentes.length > 0) {
+                document.getElementById('msgSemDependentes').style.display = 'none';
+                data.dependentes.forEach(dep => {
+                    const tr = document.createElement('tr');
+                    const dataFormatada = dep.dataNasc ? dep.dataNasc.split('-').reverse().join('/') : '';
+                    tr.innerHTML = `
+                        <td>${dep.nome}</td>
+                        <td>${dep.cpf || ''}</td>
+                        <td>${dep.parentesco}</td>
+                        <td data-raw="${dep.dataNasc}">${dataFormatada}</td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-warning me-1" onclick="editarDependente(this)"><i class="fas fa-edit"></i></button>
+                            <button type="button" class="btn btn-sm btn-danger" onclick="this.closest('tr').remove()"><i class="fas fa-trash"></i></button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            // Anexos
+            if (data.anexos && data.anexos.length > 0) {
+                listaAnexos = data.anexos.map(a => ({ nome: a.nome, tipo: a.tipo, conteudo: a.conteudo }));
+                atualizarVisualizacaoAnexos();
+            }
+            
+            // Recalcula tempo de serviço se houver data
+            if (data.dataAdmissao) calcularTempoServico();
+        }
+
+        function mascaraCPF(input) {
+            let v = input.value.replace(/\D/g, ""); // Remove tudo o que não é dígito
+            if (v.length > 11) v = v.slice(0, 11); // Limita a 11 dígitos numéricos
+
+            v = v.replace(/(\d{3})(\d)/, "$1.$2"); // Coloca um ponto entre o terceiro e o quarto dígitos
+            v = v.replace(/(\d{3})(\d)/, "$1.$2"); // Coloca um ponto entre o terceiro e o quarto dígitos de novo (para o segundo bloco de números)
+            v = v.replace(/(\d{3})(\d{1,2})$/, "$1-$2"); // Coloca um hífen entre o terceiro e o quarto dígitos
+            input.value = v;
+        }
+
+        function mascaraCEP(input) {
+            let v = input.value.replace(/\D/g, "");
+            if (v.length > 8) v = v.slice(0, 8);
+            v = v.replace(/^(\d{5})(\d)/, "$1-$2");
+            input.value = v;
+        }
+
+        async function consultarCEP(input) {
+            const cep = input.value.replace(/\D/g, '');
+            if (cep.length !== 8) return;
+
+            const loading = document.getElementById('cepLoading');
+            loading.style.display = 'inline-block';
+
+            try {
+                const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+                const data = await response.json();
+                
+                if (!data.erro) {
+                    document.getElementById('endereco').value = data.logradouro;
+                    document.getElementById('bairro').value = data.bairro;
+                    document.getElementById('cidade').value = data.localidade;
+                    document.getElementById('uf').value = data.uf;
+                    document.getElementById('numero').focus();
+                } else {
+                    alert('CEP não encontrado.');
+                }
+            } catch (error) {
+                alert('Erro ao consultar o CEP.');
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        function mascaraTelefone(input) {
+            let v = input.value.replace(/\D/g, "");
+            if (v.length > 11) v = v.slice(0, 11);
+            
+            v = v.replace(/^(\d{2})(\d)/g, "($1) $2"); // Coloca parênteses em volta dos dois primeiros dígitos
+            v = v.replace(/(\d)(\d{4})$/, "$1-$2");    // Coloca hífen entre o quarto e o quinto dígitos
+            input.value = v;
+        }
+
+        function mascaraMoeda(input, rawValue = null) {
+            let v = rawValue ? rawValue.toString().replace(/\D/g, "") : input.value.replace(/\D/g, "");
+            if (v === "") {
+                input.value = "";
+                return;
+            }
+            v = (v / 100).toFixed(2) + "";
+            v = v.replace(".", ",");
+            v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.");
+            input.value = "R$ " + v;
+        }
+
+        function toggleConjuge() {
+            const check = document.getElementById('temConjuge');
+            const area = document.getElementById('areaConjuge');
+            area.style.display = check.checked ? 'block' : 'none';
+            if (!check.checked) {
+                document.getElementById('nomeConjuge').value = '';
+                document.getElementById('cpfConjuge').value = '';
+                document.getElementById('dataNascConjuge').value = '';
+            }
+        }
+
+        function editarDependente(btn) {
+            const row = btn.closest('tr');
+            const cols = row.querySelectorAll('td');
+
+            document.getElementById('nomeDep').value = cols[0].innerText;
+            document.getElementById('cpfDep').value = cols[1].innerText;
+            document.getElementById('parentescoDep').value = cols[2].innerText;
+            document.getElementById('dataNascDep').value = cols[3].getAttribute('data-raw');
+
+            row.remove();
+            document.getElementById('nomeDep').focus();
+        }
+
+        function adicionarDependente() {
+            const nome = document.getElementById('nomeDep').value;
+            const cpf = document.getElementById('cpfDep').value;
+            const parentesco = document.getElementById('parentescoDep').value;
+            const dataNasc = document.getElementById('dataNascDep').value;
+
+            if (!nome || !dataNasc) {
+                alert('Preencha o nome e a data de nascimento do dependente.');
+                return;
+            }
+
+            const today = new Date().toISOString().split('T')[0];
+            if (dataNasc > today) {
+                alert('A data de nascimento do dependente não pode ser futura.');
+                return;
+            }
+            
+            if (cpf && !validarCPF(cpf)) {
+                alert('O CPF informado para o dependente é inválido.');
+                return;
+            }
+
+            if (cpf) {
+                const rows = document.querySelectorAll('#tabelaDependentes tbody tr');
+                for (const row of rows) {
+                    if (row.cells[1].innerText === cpf) {
+                        alert('Este CPF já foi adicionado para outro dependente.');
+                        return;
+                    }
+                }
+            }
+
+            const tbody = document.querySelector('#tabelaDependentes tbody');
+            document.getElementById('msgSemDependentes').style.display = 'none';
+
+            const tr = document.createElement('tr');
+            // Armazena a data crua (YYYY-MM-DD) para envio e exibe formatada
+            const dataFormatada = dataNasc.split('-').reverse().join('/');
+            
+            tr.innerHTML = `
+                <td>${nome}</td>
+                <td>${cpf}</td>
+                <td>${parentesco}</td>
+                <td data-raw="${dataNasc}">${dataFormatada}</td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-warning me-1" onclick="editarDependente(this)"><i class="fas fa-edit"></i></button>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="this.closest('tr').remove()"><i class="fas fa-trash"></i></button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+
+            document.getElementById('nomeDep').value = '';
+            document.getElementById('cpfDep').value = '';
+            document.getElementById('parentescoDep').value = 'Filho(a)';
+            document.getElementById('dataNascDep').value = '';
+            document.getElementById('nomeDep').focus();
+        }
+
+        // Função utilitária para comprimir imagens
+        function comprimirImagem(file, quality = 0.7, maxWidth = 1200) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > maxWidth) {
+                            height *= maxWidth / width;
+                            width = maxWidth;
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        // Retorna o Base64 comprimido (sempre image/jpeg para melhor compressão)
+                        resolve(canvas.toDataURL('image/jpeg', quality));
+                    };
+                    img.onerror = (err) => reject(err);
+                };
+                reader.onerror = (err) => reject(err);
+            });
+        }
+
+        async function processarFoto(input, imgId) {
+            if (input.files && input.files[0]) {
+                const modalElement = document.getElementById('modalProgresso');
+                const modalProgresso = new bootstrap.Modal(modalElement);
+                const barra = document.getElementById('barraProgresso');
+                const texto = document.getElementById('textoProgresso');
+
+                modalProgresso.show();
+                barra.style.width = '50%';
+                texto.innerText = 'Processando foto de perfil...';
+
+                try {
+                    const compressedBase64 = await comprimirImagem(input.files[0]);
+                    document.getElementById(imgId).src = compressedBase64;
+                    barra.style.width = '100%';
+                } catch (error) {
+                    console.error("Erro ao processar foto:", error);
+                } finally {
+                    setTimeout(() => modalProgresso.hide(), 500);
+                }
+            }
+        }
+
+        async function processarAnexos(input) {
+            if (input.files && input.files.length > 0) {
+                const modalElement = document.getElementById('modalProgresso');
+                const modalProgresso = new bootstrap.Modal(modalElement);
+                const barra = document.getElementById('barraProgresso');
+                const texto = document.getElementById('textoProgresso');
+                
+                modalProgresso.show();
+                barra.style.width = '0%';
+                
+                const total = input.files.length;
+
+                for (let i = 0; i < total; i++) {
+                    const file = input.files[i];
+                    texto.innerText = `Processando ${i + 1} de ${total}: ${file.name}`;
+
+                    // Calcula o tamanho total atual dos anexos
+                    const currentTotalSize = listaAnexos.reduce((acc, item) => {
+                        const content = item.conteudo.includes(',') ? item.conteudo.split(',')[1] : item.conteudo;
+                        return acc + (content.length * 3) / 4;
+                    }, 0);
+
+                    if (file.size > MAX_FILE_SIZE) {
+                        alert(`O arquivo "${file.name}" excede o tamanho máximo permitido de 10MB e não será anexado.`);
+                        continue;
+                    }
+                    
+                    // Verifica se a adição excederia o limite total
+                    if (currentTotalSize + file.size > MAX_TOTAL_SIZE) {
+                        alert(`O arquivo "${file.name}" não será adicionado pois o total de anexos excederia o limite de 25MB.`);
+                        continue;
+                    }
+
+                    // Se for imagem, comprime. Se for PDF, lê normal.
+                    if (file.type.startsWith('image/')) {
+                        try {
+                            const compressedContent = await comprimirImagem(file);
+                            // Ajusta extensão e tipo para JPEG, pois a compressão converte para JPEG
+                            const newName = file.name.replace(/\.[^/.]+$/, "") + ".jpg";
+                            listaAnexos.push({
+                                nome: newName,
+                                tipo: "image/jpeg", 
+                                conteudo: compressedContent
+                            });
+                        } catch (e) {
+                            console.error("Erro ao comprimir anexo:", e);
+                        }
+                    } else {
+                        // Processamento padrão para PDF ou outros arquivos
+                        try {
+                            const content = await new Promise((resolve, reject) => {
+                                const reader = new FileReader();
+                                reader.onload = (e) => resolve(e.target.result);
+                                reader.onerror = (e) => reject(e);
+                                reader.readAsDataURL(file);
+                            });
+                            listaAnexos.push({
+                                nome: file.name,
+                                tipo: file.type,
+                                conteudo: content
+                            });
+                        } catch (e) {
+                            console.error("Erro ao ler arquivo:", e);
+                        }
+                    }
+                    
+                    const percent = Math.round(((i + 1) / total) * 100);
+                    barra.style.width = `${percent}%`;
+                }
+                
+                setTimeout(() => {
+                    modalProgresso.hide();
+                    atualizarVisualizacaoAnexos();
+                }, 500);
+            }
+            input.value = ''; // Limpa o input para permitir selecionar o mesmo arquivo novamente se necessário
+        }
+
+        function atualizarVisualizacaoAnexos() {
+            const div = document.getElementById('listaAnexos');
+            div.innerHTML = '';
+            listaAnexos.forEach((anexo, index) => {
+                const item = document.createElement('div');
+                item.className = 'list-group-item d-flex justify-content-between align-items-center';
+                
+                const infoSpan = document.createElement('span');
+                infoSpan.innerHTML = `<i class="fas fa-paperclip me-2 text-secondary"></i>${anexo.nome}`;
+                
+                const btnDiv = document.createElement('div');
+                
+                const btnView = document.createElement('button');
+                btnView.type = 'button';
+                btnView.className = 'btn btn-sm btn-outline-secondary me-2';
+                btnView.title = 'Visualizar';
+                btnView.innerHTML = '<i class="fas fa-eye"></i>';
+                btnView.onclick = () => visualizarAnexo(index);
+                btnDiv.appendChild(btnView);
+
+                const btnDel = document.createElement('button');
+                btnDel.type = 'button';
+                btnDel.className = 'btn btn-sm btn-outline-danger';
+                btnDel.title = 'Remover';
+                btnDel.innerHTML = '<i class="fas fa-times"></i>';
+                btnDel.onclick = () => removerAnexo(index);
+                btnDiv.appendChild(btnDel);
+
+                item.appendChild(infoSpan);
+                item.appendChild(btnDiv);
+                div.appendChild(item);
+            });
+        }
+
+        function visualizarAnexo(index) {
+            const anexo = listaAnexos[index];
+            if (!anexo) return;
+
+            const el = document.getElementById('modalVisualizarAnexo');
+            const modal = new bootstrap.Modal(el);
+            document.getElementById('tituloVisualizacao').innerText = anexo.nome;
+            const corpo = document.getElementById('corpoVisualizacao');
+            corpo.innerHTML = '';
+
+            if (anexo.tipo.startsWith('image/')) {
+                const img = document.createElement('img');
+                img.src = anexo.conteudo;
+                img.className = 'img-fluid';
+                img.style.maxHeight = '100%';
+                corpo.appendChild(img);
+            } else if (anexo.tipo === 'application/pdf') {
+                const object = document.createElement('object');
+                object.data = anexo.conteudo;
+                object.type = 'application/pdf';
+                object.width = '100%';
+                object.height = '100%';
+                object.innerHTML = `<p>Seu navegador não suporta visualização de PDF. <a href="${anexo.conteudo}" download="${anexo.nome}">Baixe aqui</a>.</p>`;
+                corpo.appendChild(object);
+            } else {
+                corpo.innerHTML = '<div class="p-5 text-center"><h5>Visualização não disponível.</h5></div>';
+            }
+            
+            modal.show();
+        }
+
+        function removerAnexo(index) {
+            listaAnexos.splice(index, 1);
+            atualizarVisualizacaoAnexos();
+        }
+
+        function obterDadosFormulario() {
+            const titular = {
+                nome: document.getElementById('nomeTitular').value,
+                cpf: document.getElementById('cpfTitular').value,
+                rg: document.getElementById('rgTitular').value,
+                dataEmissaoRg: document.getElementById('dataEmissaoRg').value,
+                orgaoEmissorRg: document.getElementById('orgaoEmissorRg').value,
+                numCtps: document.getElementById('numCtps').value,
+                serieCtps: document.getElementById('serieCtps').value,
+                ufCtps: document.getElementById('ufCtps').value,
+                dataEmissaoCtps: document.getElementById('dataEmissaoCtps').value,
+                numTitulo: document.getElementById('numTitulo').value,
+                zonaTitulo: document.getElementById('zonaTitulo').value,
+                secaoTitulo: document.getElementById('secaoTitulo').value,
+                cidadeUfTitulo: document.getElementById('cidadeUfTitulo').value,
+                numPis: document.getElementById('numPis').value,
+                dataEmissaoPis: document.getElementById('dataEmissaoPis').value,
+                cnh: document.getElementById('cnh').value,
+                registroProfissional: document.getElementById('registroProfissional').value,
+                dataNasc: document.getElementById('dataNascTitular').value,
+                sexo: document.getElementById('sexo').value,
+                raca: document.getElementById('raca').value,
+                estadoCivil: document.getElementById('estadoCivil').value,
+                nacionalidade: document.getElementById('nacionalidade').value,
+                naturalidade: document.getElementById('naturalidade').value,
+                grauInstrucao: document.getElementById('grauInstrucao').value,
+                nomePai: document.getElementById('nomePai').value,
+                nomeMae: document.getElementById('nomeMae').value,
+                email: document.getElementById('email').value,
+                telefone: document.getElementById('telefone').value,
+                celular: document.getElementById('celular').value,
+                cep: document.getElementById('cep').value,
+                endereco: document.getElementById('endereco').value,
+                numero: document.getElementById('numero').value,
+                bairro: document.getElementById('bairro').value,
+                cidade: document.getElementById('cidade').value,
+                uf: document.getElementById('uf').value,
+                matricula: document.getElementById('matricula').value,
+                tipoAdmissao: document.getElementById('tipoAdmissao').value,
+                dataAdmissao: document.getElementById('dataAdmissao').value,
+                numPortaria: document.getElementById('numPortaria').value,
+                tipoCargo: document.getElementById('tipoCargo').value,
+                cargo: document.getElementById('cargo').value,
+                regimeTrabalho: document.getElementById('regimeTrabalho').value,
+                salarioBase: document.getElementById('salarioBase').value.replace(/[^\d,]/g, '').replace(',', '.'),
+                secretaria: document.getElementById('secretaria').value,
+                setor: document.getElementById('setor').value,
+                unidadeTrabalho: document.getElementById('unidadeTrabalho').value,
+                lotacao: document.getElementById('lotacao').value,
+                foto_perfil: document.getElementById('previewFoto').src === PLACEHOLDER_FOTO ? null : document.getElementById('previewFoto').src
+            };
+
+            const temConjuge = document.getElementById('temConjuge').checked;
+            const conjuge = {
+                temConjuge: temConjuge,
+                nome: temConjuge ? document.getElementById('nomeConjuge').value : null,
+                cpf: temConjuge ? document.getElementById('cpfConjuge').value : null,
+                dataNasc: temConjuge ? document.getElementById('dataNascConjuge').value : null
+            };
+
+            const dependentes = [];
+            document.querySelectorAll('#tabelaDependentes tbody tr').forEach(row => {
+                const cols = row.querySelectorAll('td');
+                dependentes.push({
+                    nome: cols[0].innerText,
+                    cpf: cols[1].innerText,
+                    parentesco: cols[2].innerText,
+                    dataNasc: cols[3].getAttribute('data-raw')
+                });
+            });
+
+            return { titular, conjuge, dependentes, anexos: listaAnexos };
+        }
+
+        async function salvarRascunho() {
+            const nome = document.getElementById('nomeTitular').value;
+            const cpf = document.getElementById('cpfTitular').value;
+
+            if (cpf && !validarCPF(cpf)) {
+                alert('O CPF do titular é inválido.');
+                return;
+            }
+
+            // Validação mínima para o banco de dados aceitar o registro
+            if (!nome || !cpf) {
+                alert('Para salvar um rascunho, é obrigatório preencher pelo menos o Nome e o CPF do titular.');
+                return;
+            }
+
+            const dados = obterDadosFormulario();
+            dados.status = 'rascunho'; // Define status explicitamente
+            const id = document.getElementById('titularId').value;
+            
+            // Se já tem ID, atualiza (PUT), senão cria (POST)
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `http://localhost:3000/api/servidor/${id}` : 'http://localhost:3000/api/cadastro';
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dados)
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    if (result.id) document.getElementById('titularId').value = result.id;
+                    alert('Rascunho salvo com sucesso! Você pode retomar este cadastro posteriormente informando o CPF.');
+                } else {
+                    alert('Erro ao salvar rascunho: ' + (result.error || 'Erro desconhecido'));
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro de conexão ao salvar rascunho.');
+            }
+        }
+
+        document.getElementById('formCadastro').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const form = e.target;
+            if (!form.checkValidity()) {
+                e.stopPropagation();
+                form.classList.add('was-validated');
+
+                // Localiza o primeiro campo inválido e abre a aba correspondente se estiver oculta
+                const invalidElement = form.querySelector(':invalid');
+                if (invalidElement) {
+                    const tabPane = invalidElement.closest('.tab-pane');
+                    if (tabPane) {
+                        const tabButton = document.querySelector(`button[data-bs-target="#${tabPane.id}"]`);
+                        if (tabButton) bootstrap.Tab.getOrCreateInstance(tabButton).show();
+                    }
+                    invalidElement.focus();
+                }
+                return;
+            }
+
+            const dados = obterDadosFormulario();
+            dados.status = 'finalizado'; // Define status explicitamente
+            const id = document.getElementById('titularId').value;
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `http://localhost:3000/api/servidor/${id}` : 'http://localhost:3000/api/cadastro';
+
+            try {
+                const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dados) });
+                const result = await response.json();
+                if (response.ok) {
+                    alert('Cadastro finalizado com sucesso!');
+                    window.location.reload();
+                } else {
+                    alert('Erro: ' + (result.error || 'Erro desconhecido'));
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro de conexão com o servidor.');
+            }
+        });
+
+        function validarCPF(cpf) {
+            cpf = cpf.replace(/[^\d]+/g, '');
+            if (cpf == '') return false;
+            // Elimina CPFs invalidos conhecidos
+            if (cpf.length != 11 ||
+                cpf == "00000000000" ||
+                cpf == "11111111111" ||
+                cpf == "22222222222" ||
+                cpf == "33333333333" ||
+                cpf == "44444444444" ||
+                cpf == "55555555555" ||
+                cpf == "66666666666" ||
+                cpf == "77777777777" ||
+                cpf == "88888888888" ||
+                cpf == "99999999999")
+                return false;
+            // Valida 1o digito
+            let add = 0;
+            for (let i = 0; i < 9; i++)
+                add += parseInt(cpf.charAt(i)) * (10 - i);
+            let rev = 11 - (add % 11);
+            if (rev == 10 || rev == 11)
+                rev = 0;
+            if (rev != parseInt(cpf.charAt(9)))
+                return false;
+            // Valida 2o digito
+            add = 0;
+            for (let i = 0; i < 10; i++)
+                add += parseInt(cpf.charAt(i)) * (11 - i);
+            rev = 11 - (add % 11);
+            if (rev == 10 || rev == 11)
+                rev = 0;
+            if (rev != parseInt(cpf.charAt(10)))
+                return false;
+            return true;
+        }
+
+        function validarInputCPF(input) {
+            if (input.value && !validarCPF(input.value)) {
+                input.setCustomValidity('CPF inválido.');
+                input.reportValidity();
+            } else {
+                input.setCustomValidity('');
+            }
+        }
+
+        // Validação para impedir data de nascimento futura no titular
+        const dataNascTitular = document.getElementById('dataNascTitular');
+        const dataAtual = new Date();
+        const maxDate = dataAtual.getFullYear() + '-' + String(dataAtual.getMonth() + 1).padStart(2, '0') + '-' + String(dataAtual.getDate()).padStart(2, '0');
+        dataNascTitular.setAttribute('max', maxDate);
+
+        // Validação para Cônjuge e Dependente
+        const inputsData = ['dataNascConjuge', 'dataNascDep'];
+        inputsData.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.setAttribute('max', maxDate);
+                el.addEventListener('input', function() {
+                    if (this.value > maxDate) this.setCustomValidity('A data de nascimento não pode ser futura.');
+                    else this.setCustomValidity('');
+                });
+            }
+        });
+
+        dataNascTitular.addEventListener('input', function() {
+            if (this.value > maxDate) {
+                this.setCustomValidity('A data de nascimento não pode ser futura.');
+            } else if (this.value) {
+                const parts = this.value.split('-');
+                const birthDate = new Date(parts[0], parts[1] - 1, parts[2]);
+                const today = new Date();
+                let age = today.getFullYear() - birthDate.getFullYear();
+                const m = today.getMonth() - birthDate.getMonth();
+                if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+                    age--;
+                }
+                if (age < 18) this.setCustomValidity('O titular deve ter pelo menos 18 anos.');
+                else this.setCustomValidity('');
+            } else {
+                this.setCustomValidity('');
+            }
+        });
+
+        // Validação para garantir que a Data de Admissão não seja anterior à Data de Nascimento
+        const dataAdmissao = document.getElementById('dataAdmissao');
+
+        function validarDataAdmissao() {
+            if (dataNascTitular.value && dataAdmissao.value) {
+                if (dataAdmissao.value < dataNascTitular.value) {
+                    dataAdmissao.setCustomValidity('A data de admissão não pode ser anterior à data de nascimento.');
+                } else {
+                    dataAdmissao.setCustomValidity('');
+                }
+            } else {
+                dataAdmissao.setCustomValidity('');
+            }
+        }
+
+        dataAdmissao.addEventListener('input', validarDataAdmissao);
+        dataNascTitular.addEventListener('input', validarDataAdmissao);
+
+        // Função para calcular Tempo de Serviço
+        function calcularTempoServico() {
+            if (dataAdmissao.value) {
+                const inicio = new Date(dataAdmissao.value);
+                const hoje = new Date();
+                let anos = hoje.getFullYear() - inicio.getFullYear();
+                const m = hoje.getMonth() - inicio.getMonth();
+                if (m < 0 || (m === 0 && hoje.getDate() < inicio.getDate())) {
+                    anos--;
+                }
+                document.getElementById('tempoServico').value = anos >= 0 ? anos + ' anos' : '0 anos';
+            } else {
+                document.getElementById('tempoServico').value = '';
+            }
+        }
+
+        dataAdmissao.addEventListener('input', calcularTempoServico);
+    </script>
+</body>
+</html>

@@ -1,0 +1,2176 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SICASV - Painel Administrativo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: var(--bs-body-bg); transition: background-color 0.3s; }
+        .header-admin { background: linear-gradient(135deg, #1e293b 0%, #343a40 100%); color: white; padding: 15px 0; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); }
+        .card-dashboard { border: none; box-shadow: 0 5px 15px rgba(0,0,0,0.05); border-radius: 10px; overflow: hidden; }
+        .header-admin { background: linear-gradient(135deg, #0f3d24 0%, #198754 100%); color: white; padding: 15px 0; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); }
+        .btn-action { margin-right: 5px; }
+        /* .table-hover tbody tr:hover { background-color: #f1f1f1; } Bootstrap handles this in dark mode */
+        .nav-tabs .nav-link.active { background-color: #e9ecef; border-color: #dee2e6 #dee2e6 #fff; font-weight: bold; color: #0056b3; }
+        [data-bs-theme="dark"] .nav-tabs .nav-link.active { background-color: #2b3035; border-color: #495057 #495057 #2b3035; color: #6ea8fe; }
+        .form-control:read-only { background-color: var(--bs-secondary-bg); cursor: default; }
+        .modal-header { background-color: #0056b3; color: white; }
+        .modal-header { background-color: #198754; color: white; }
+        .modal-title i { margin-right: 10px; }
+    </style>
+</head>
+<body>
+
+    <!-- Cabeçalho -->
+    <header class="header-admin">
+        <div class="container d-flex justify-content-between align-items-center">
+            <h3 class="mb-0">
+                <i class="fas fa-cogs"></i> SICASV <span class="fs-6 text-light opacity-75">| Administração</span>
+                <span id="badgeMaster" class="badge bg-warning text-dark ms-2" style="display:none; font-size: 0.7rem;">MASTER</span>
+            </h3>
+            <div>
+                <button id="btnNovoAdmin" class="btn btn-outline-info btn-sm me-2" style="display: none;" onclick="abrirModalAdmin()"><i class="fas fa-user-shield"></i> Novo Admin</button>
+                <button class="btn btn-outline-danger btn-sm me-2" onclick="abrirLixeira()"><i class="fas fa-trash-restore"></i> Lixeira</button>
+                <button class="btn btn-outline-success btn-sm me-2" onclick="fazerBackup()"><i class="fas fa-download"></i> Backup BD</button>
+                <button class="btn btn-outline-danger btn-sm me-2" onclick="document.getElementById('inputRestore').click()"><i class="fas fa-upload"></i> Restaurar BD</button>
+                <input type="file" id="inputRestore" accept=".sql" style="display: none;" onchange="restaurarBackup(this)">
+                <button class="btn btn-outline-light btn-sm me-2" onclick="toggleTheme()" id="btnTheme"><i class="fas fa-moon"></i></button>
+                <button class="btn btn-outline-light btn-sm" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="card card-dashboard">
+            <div class="card-header py-3">
+                <div class="row align-items-center">
+                    <div class="col-md-4">
+                        <h5 class="mb-0"><i class="fas fa-users text-primary"></i> Servidores Cadastrados</h5>
+                    </div>
+                    <div class="col-md-8 d-flex justify-content-end gap-2 align-items-center">
+                        <div class="input-group" style="max-width: 300px;">
+                            <input type="text" class="form-control" id="searchInput" placeholder="Pesquisar..." oninput="filtrarServidores()">
+                            <span class="input-group-text bg-light"><i class="fas fa-search"></i></span>
+                        </div>
+                        <button class="btn btn-outline-primary" onclick="toggleFiltros()" title="Filtros Avançados"><i class="fas fa-filter"></i></button>
+                        <button class="btn btn-secondary" onclick="imprimirLista()"><i class="fas fa-print"></i> Imprimir</button>
+                        
+                        <!-- Menu Dropdown de Exportação -->
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false"><i class="fas fa-file-export"></i> Exportar</button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="#" onclick="enviarPDFEmail()"><i class="fas fa-envelope text-warning me-2"></i> Enviar PDF por Email</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="#" onclick="exportarPDF()"><i class="fas fa-file-pdf text-danger me-2"></i> PDF</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="exportarExcel()"><i class="fas fa-file-excel text-success me-2"></i> Excel (XLS)</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="exportarDOC()"><i class="fas fa-file-word text-primary me-2"></i> Word (DOC)</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="exportarTXT()"><i class="fas fa-file-alt text-secondary me-2"></i> Texto (TXT)</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="#" onclick="exportarCSV()"><i class="fas fa-file-csv text-success me-2"></i> CSV</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Área de Filtros Avançados -->
+                <div class="px-3 pt-2">
+                    <ul class="nav nav-tabs card-header-tabs" id="statusTabs">
+                        <li class="nav-item"><a class="nav-link active" href="#" onclick="mudarStatus('finalizado', this)">Finalizados</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#" onclick="mudarStatus('rascunho', this)">Rascunhos</a></li>
+                    </ul>
+                </div>
+                <div class="row mt-3 border-top pt-3 g-2" id="painelFiltros" style="display: none;">
+                    <div class="col-md-4">
+                        <input type="text" class="form-control form-control-sm" id="filtroCargo" placeholder="Filtrar por Cargo" oninput="filtrarServidores()">
+                    </div>
+                    <div class="col-md-4">
+                        <input type="text" class="form-control form-control-sm" id="filtroSecretaria" placeholder="Filtrar por Secretaria" oninput="filtrarServidores()">
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select form-select-sm" id="filtroTipoAdmissao" onchange="filtrarServidores()">
+                            <option value="">Tipo de Admissão (Todos)</option>
+                            <option value="Concurso Público">Concurso Público</option>
+                            <option value="Processo Seletivo">Processo Seletivo</option>
+                            <option value="Nomeação">Nomeação</option>
+                            <option value="Contrato">Contrato</option>
+                            <option value="Outro">Outro</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                        <button class="btn btn-sm btn-secondary w-100" onclick="limparFiltros()">Limpar</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 align-middle" id="tabelaServidores">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 60px;">Foto</th>
+                                <th class="text-center" style="width: 50px;" title="Status">St.</th>
+                                <th>Matrícula</th>
+                                <th>Nome</th>
+                                <th>CPF</th>
+                                <th>Cargo</th>
+                                <th>Lotação</th>
+                                <th class="text-end">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="listaServidores">
+                            <!-- Dados serão carregados aqui via JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer d-flex justify-content-between align-items-center py-3">
+                <span class="text-muted small" id="totalRegistros">Carregando...</span>
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item disabled"><a class="page-link" href="#">Anterior</a></li>
+                        <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                        <li class="page-item"><a class="page-link" href="#">2</a></li>
+                        <li class="page-item"><a class="page-link" href="#">Próximo</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <!-- Área Exclusiva Master: Gestão de Administradores -->
+    <div class="container mt-4" id="areaMaster" style="display: none;">
+        <div class="card card-dashboard border-warning">
+            <div class="card-header bg-warning bg-opacity-10 py-3">
+                <div class="row align-items-center">
+                    <div class="col-md-12">
+                        <h5 class="mb-0 text-dark"><i class="fas fa-users-cog"></i> Gestão de Administradores</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Nome</th>
+                                <th>CPF</th>
+                                <th>Telefone</th>
+                                <th>Email</th>
+                                <th class="text-end">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="listaAdmins"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Detalhes -->
+    <div class="modal fade" id="modalDetalhes" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-id-card-alt"></i> Ficha Completa do Servidor</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="corpoDetalhes">
+                    <input type="hidden" id="view_servidorId">
+                    
+                    <!-- Navegação de Abas -->
+                    <ul class="nav nav-tabs mb-3" id="detalhesTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="view-pessoais-tab" data-bs-toggle="tab" data-bs-target="#view-pessoais" type="button" role="tab">Dados Pessoais</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="view-documentos-tab" data-bs-toggle="tab" data-bs-target="#view-documentos" type="button" role="tab">Documentos</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="view-admissao-tab" data-bs-toggle="tab" data-bs-target="#view-admissao" type="button" role="tab">Dados do Ato de Admissão</button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="detalhesTabsContent">
+                        <!-- ABA 1: DADOS PESSOAIS -->
+                        <div class="tab-pane fade show active" id="view-pessoais" role="tabpanel">
+                            <div class="row g-3">
+                                <!-- Foto Visualização -->
+                                <div class="col-12 d-flex justify-content-center mb-3">
+                                    <img id="view_fotoPerfil" src="" class="img-thumbnail rounded-circle" style="width: 150px; height: 150px; object-fit: cover;">
+                                </div>
+
+                                <div class="col-12"><h6 class="text-primary border-bottom pb-2">Identificação</h6></div>
+                                <div class="col-md-12">
+                                    <label class="form-label fw-bold">Nome Completo</label>
+                                    <input type="text" class="form-control" id="view_nomeTitular" readonly>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold">Data de Nascimento</label>
+                                    <input type="date" class="form-control" id="view_dataNascTitular" readonly>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold">Sexo</label>
+                                    <input type="text" class="form-control" id="view_sexo" readonly>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold">Raça/Cor</label>
+                                    <input type="text" class="form-control" id="view_raca" readonly>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold">Estado Civil</label>
+                                    <input type="text" class="form-control" id="view_estadoCivil" readonly>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Grau de Instrução</label>
+                                    <input type="text" class="form-control" id="view_grauInstrucao" readonly>
+                                </div>
+
+                                <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-2">Filiação</h6></div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Nome do Pai</label>
+                                    <input type="text" class="form-control" id="view_nomePai" readonly>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Nome da Mãe</label>
+                                    <input type="text" class="form-control" id="view_nomeMae" readonly>
+                                </div>
+
+                                <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-2">Contato</h6></div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Email</label>
+                                    <input type="text" class="form-control" id="view_email" readonly>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Telefone</label>
+                                    <input type="text" class="form-control" id="view_telefone" readonly>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Celular</label>
+                                    <input type="text" class="form-control" id="view_celular" readonly>
+                                </div>
+
+                                <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-2">Endereço e Origem</h6></div>
+                                <div class="col-md-2">
+                                    <label class="form-label fw-bold">CEP</label>
+                                    <input type="text" class="form-control" id="view_cep" readonly>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Endereço</label>
+                                    <input type="text" class="form-control" id="view_endereco" readonly>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label fw-bold">Número</label>
+                                    <input type="text" class="form-control" id="view_numero" readonly>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label fw-bold">Bairro</label>
+                                    <input type="text" class="form-control" id="view_bairro" readonly>
+                                </div>
+                                <div class="col-md-10">
+                                    <label class="form-label fw-bold">Cidade</label>
+                                    <input type="text" class="form-control" id="view_cidade" readonly>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label fw-bold">UF</label>
+                                    <input type="text" class="form-control" id="view_uf" readonly>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Nacionalidade</label>
+                                    <input type="text" class="form-control" id="view_nacionalidade" readonly>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Naturalidade</label>
+                                    <input type="text" class="form-control" id="view_naturalidade" readonly>
+                                </div>
+
+                                <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-2">Dados do Cônjuge</h6></div>
+                                <div class="col-12" id="view_areaConjuge" style="display: none;">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">Nome do Cônjuge</label>
+                                            <input type="text" class="form-control" id="view_nomeConjuge" readonly>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-bold">CPF do Cônjuge</label>
+                                            <input type="text" class="form-control" id="view_cpfConjuge" readonly>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-bold">Data de Nascimento</label>
+                                            <input type="date" class="form-control" id="view_dataNascConjuge" readonly>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12" id="view_msgSemConjuge">
+                                    <p class="text-muted fst-italic">Não possui cônjuge declarado.</p>
+                                </div>
+
+                                <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-2">Dependentes</h6></div>
+                                <div class="col-12">
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered table-sm" id="view_tabelaDependentes">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>Nome</th>
+                                                    <th>CPF</th>
+                                                    <th>Parentesco</th>
+                                                    <th>Data de Nascimento</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                        <div id="view_msgSemDependentes" class="text-center text-muted py-2">Nenhum dependente cadastrado.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ABA 2: DOCUMENTOS -->
+                        <div class="tab-pane fade" id="view-documentos" role="tabpanel">
+                            <div class="row g-3">
+                                <div class="col-12"><h6 class="text-primary border-bottom pb-2">Documentos de Identificação</h6></div>
+                                <div class="col-md-3"><label class="form-label fw-bold">CPF</label><input type="text" class="form-control" id="view_cpfTitular" readonly></div>
+                                <div class="col-md-3"><label class="form-label fw-bold">RG</label><input type="text" class="form-control" id="view_rgTitular" readonly></div>
+                                <div class="col-md-3"><label class="form-label fw-bold">Data Emissão RG</label><input type="date" class="form-control" id="view_dataEmissaoRg" readonly></div>
+                                <div class="col-md-3"><label class="form-label fw-bold">Órgão Emissor</label><input type="text" class="form-control" id="view_orgaoEmissorRg" readonly></div>
+
+                                <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-2">Carteira de Trabalho (CTPS)</h6></div>
+                                <div class="col-md-3"><label class="form-label fw-bold">Número</label><input type="text" class="form-control" id="view_numCtps" readonly></div>
+                                <div class="col-md-3"><label class="form-label fw-bold">Série</label><input type="text" class="form-control" id="view_serieCtps" readonly></div>
+                                <div class="col-md-2"><label class="form-label fw-bold">UF</label><input type="text" class="form-control" id="view_ufCtps" readonly></div>
+                                <div class="col-md-4"><label class="form-label fw-bold">Data de Emissão</label><input type="date" class="form-control" id="view_dataEmissaoCtps" readonly></div>
+
+                                <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-2">Título de Eleitor</h6></div>
+                                <div class="col-md-4"><label class="form-label fw-bold">Número do Título</label><input type="text" class="form-control" id="view_numTitulo" readonly></div>
+                                <div class="col-md-2"><label class="form-label fw-bold">Zona</label><input type="text" class="form-control" id="view_zonaTitulo" readonly></div>
+                                <div class="col-md-2"><label class="form-label fw-bold">Seção</label><input type="text" class="form-control" id="view_secaoTitulo" readonly></div>
+                                <div class="col-md-4"><label class="form-label fw-bold">Cidade/UF</label><input type="text" class="form-control" id="view_cidadeUfTitulo" readonly></div>
+
+                                <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-2">Outros Documentos</h6></div>
+                                <div class="col-md-3"><label class="form-label fw-bold">PIS/PASEP</label><input type="text" class="form-control" id="view_numPis" readonly></div>
+                                <div class="col-md-3"><label class="form-label fw-bold">Data Emissão PIS</label><input type="date" class="form-control" id="view_dataEmissaoPis" readonly></div>
+                                <div class="col-md-3"><label class="form-label fw-bold">CNH</label><input type="text" class="form-control" id="view_cnh" readonly></div>
+                                <div class="col-md-3"><label class="form-label fw-bold">Registro Profissional</label><input type="text" class="form-control" id="view_registroProfissional" readonly></div>
+
+                                <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-2">Comprovantes Anexados</h6></div>
+                                <div class="col-12">
+                                    <div class="d-flex justify-content-end mb-2">
+                                        <button id="btnBaixarZip" class="btn btn-sm btn-outline-primary me-2" style="display: none;">
+                                            <i class="fas fa-file-archive"></i> Baixar Todos (ZIP)
+                                        </button>
+                                        <button class="btn btn-sm btn-success" onclick="document.getElementById('inputUploadDetalhes').click()">
+                                            <i class="fas fa-plus"></i> Adicionar Documento
+                                        </button>
+                                        <input type="file" id="inputUploadDetalhes" class="d-none" multiple accept="image/*,application/pdf" onchange="uploadAnexoDetalhes(this)">
+                                    </div>
+                                    <div class="list-group" id="view_listaAnexos"></div>
+                                    <div id="view_msgSemAnexos" class="text-muted fst-italic">Nenhum documento anexado.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ABA 3: DADOS DO ATO DE ADMISSÃO -->
+                        <div class="tab-pane fade" id="view-admissao" role="tabpanel">
+                            <div class="row g-3">
+                                <div class="col-12"><h6 class="text-primary border-bottom pb-2">Detalhes da Admissão</h6></div>
+                                <div class="col-md-2"><label class="form-label fw-bold">Matrícula</label><input type="text" class="form-control" id="view_matricula" readonly></div>
+                                <div class="col-md-3"><label class="form-label fw-bold">Tipo de Admissão</label><input type="text" class="form-control" id="view_tipoAdmissao" readonly></div>
+                                <div class="col-md-3"><label class="form-label fw-bold">Data de Admissão</label><input type="date" class="form-control" id="view_dataAdmissao" readonly></div>
+                                <div class="col-md-2"><label class="form-label fw-bold">Tempo de Serviço</label><input type="text" class="form-control" id="view_tempoServico" readonly></div>
+                                <div class="col-md-2"><label class="form-label fw-bold">Nº da Portaria</label><input type="text" class="form-control" id="view_numPortaria" readonly></div>
+
+                                <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-2">Cargo e Remuneração</h6></div>
+                                <div class="col-md-3"><label class="form-label fw-bold">Tipo de Cargo</label><input type="text" class="form-control" id="view_tipoCargo" readonly></div>
+                                <div class="col-md-3"><label class="form-label fw-bold">Cargo/Função</label><input type="text" class="form-control" id="view_cargo" readonly></div>
+                                <div class="col-md-3"><label class="form-label fw-bold">Regime de Trabalho</label><input type="text" class="form-control" id="view_regimeTrabalho" readonly></div>
+                                <div class="col-md-3"><label class="form-label fw-bold">Salário Base</label><input type="text" class="form-control" id="view_salarioBase" readonly></div>
+
+                                <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-2">Lotação e Localização</h6></div>
+                                <div class="col-md-4"><label class="form-label fw-bold">Secretaria</label><input type="text" class="form-control" id="view_secretaria" readonly></div>
+                                <div class="col-md-4"><label class="form-label fw-bold">Setor</label><input type="text" class="form-control" id="view_setor" readonly></div>
+                                <div class="col-md-4"><label class="form-label fw-bold">Unidade de Trabalho</label><input type="text" class="form-control" id="view_unidadeTrabalho" readonly></div>
+                                <div class="col-md-12"><label class="form-label fw-bold">Lotação</label><input type="text" class="form-control" id="view_lotacao" readonly></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Servidor -->
+    <div class="modal fade" id="modalEditarServidor" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title"><i class="fas fa-edit"></i> Editar Cadastro do Servidor</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formEditarServidor">
+                        <input type="hidden" id="editServidorId">
+                        <!-- Estrutura de Abas (copiada de index.html) -->
+                        <ul class="nav nav-tabs mb-3" role="tablist">
+                            <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#edit-pessoais" type="button" role="tab">Dados Pessoais</button></li>
+                            <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#edit-documentos" type="button" role="tab">Documentos</button></li>
+                            <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#edit-admissao" type="button" role="tab">Dados de Admissão</button></li>
+                        </ul>
+                        <div class="tab-content">
+                            <!-- ABA 1: DADOS PESSOAIS -->
+                            <div class="tab-pane fade show active" id="edit-pessoais" role="tabpanel">
+                                <div class="row g-3">
+                                    <!-- Foto Edição -->
+                                    <div class="col-12 d-flex justify-content-center mb-3">
+                                        <div class="text-center">
+                                            <img id="edit_previewFoto" src="" class="img-thumbnail rounded-circle" style="width: 150px; height: 150px; object-fit: cover;">
+                                            <div class="mt-2">
+                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('edit_inputFoto').click()"><i class="fas fa-camera"></i> Alterar Foto</button>
+                                                <input type="file" id="edit_inputFoto" class="d-none" accept="image/*" onchange="processarFoto(this, 'edit_previewFoto')">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-12"><label class="form-label">Nome Completo</label><input type="text" class="form-control" id="edit_nomeTitular" required></div>
+                                    <div class="col-md-3"><label class="form-label">Data de Nascimento</label><input type="date" class="form-control" id="edit_dataNascTitular" required></div>
+                                    <div class="col-md-3"><label class="form-label">Sexo</label><select class="form-select" id="edit_sexo"><option value="">Selecione</option><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option><option value="Outro">Outro</option></select></div>
+                                    <div class="col-md-3"><label class="form-label">Raça/Cor</label><select class="form-select" id="edit_raca"><option value="">Selecione</option><option value="Branca">Branca</option><option value="Preta">Preta</option><option value="Parda">Parda</option><option value="Amarela">Amarela</option><option value="Indígena">Indígena</option></select></div>
+                                    <div class="col-md-3"><label class="form-label">Estado Civil</label><select class="form-select" id="edit_estadoCivil"><option value="">Selecione</option><option value="Solteiro(a)">Solteiro(a)</option><option value="Casado(a)">Casado(a)</option><option value="Divorciado(a)">Divorciado(a)</option><option value="Viúvo(a)">Viúvo(a)</option><option value="União Estável">União Estável</option></select></div>
+                                    <div class="col-md-4"><label class="form-label">Grau de Instrução</label><select class="form-select" id="edit_grauInstrucao"><option value="">Selecione</option><option value="Fundamental">Fundamental</option><option value="Médio">Médio</option><option value="Superior">Superior</option><option value="Pós-Graduação">Pós-Graduação</option></select></div>
+                                    <div class="col-md-6"><label class="form-label">Nome do Pai</label><input type="text" class="form-control" id="edit_nomePai"></div>
+                                    <div class="col-md-6"><label class="form-label">Nome da Mãe</label><input type="text" class="form-control" id="edit_nomeMae"></div>
+                                    <div class="col-md-4"><label class="form-label">Email</label><input type="email" class="form-control" id="edit_email"></div>
+                                    <div class="col-md-4"><label class="form-label">Telefone</label><input type="text" class="form-control" id="edit_telefone" oninput="mascaraTelefone(this)"></div>
+                                    <div class="col-md-4"><label class="form-label">Celular</label><input type="text" class="form-control" id="edit_celular" oninput="mascaraTelefone(this)"></div>
+                                    <div class="col-md-2"><label class="form-label">CEP</label><input type="text" class="form-control" id="edit_cep" oninput="mascaraCEP(this)"></div>
+                                    <div class="col-md-6"><label class="form-label">Endereço</label><input type="text" class="form-control" id="edit_endereco"></div>
+                                    <div class="col-md-2"><label class="form-label">Número</label><input type="text" class="form-control" id="edit_numero"></div>
+                                    <div class="col-md-2"><label class="form-label">Bairro</label><input type="text" class="form-control" id="edit_bairro"></div>
+                                    <div class="col-md-10"><label class="form-label">Cidade</label><input type="text" class="form-control" id="edit_cidade"></div>
+                                    <div class="col-md-2"><label class="form-label">UF</label><input type="text" class="form-control" id="edit_uf"></div>
+                                    <div class="col-md-6"><label class="form-label">Nacionalidade</label><input type="text" class="form-control" id="edit_nacionalidade"></div>
+                                    <div class="col-md-6"><label class="form-label">Naturalidade</label><input type="text" class="form-control" id="edit_naturalidade"></div>
+                                    <div class="col-12 mt-3"><div class="form-check"><input class="form-check-input" type="checkbox" id="edit_temConjuge" onchange="toggleConjugeEdicao()"><label class="form-check-label" for="edit_temConjuge">Possui Cônjuge?</label></div></div>
+                                    <div class="col-12" id="edit_areaConjuge" style="display: none;"><div class="row g-3"><div class="col-md-6"><label class="form-label">Nome do Cônjuge</label><input type="text" class="form-control" id="edit_nomeConjuge"></div><div class="col-md-3"><label class="form-label">CPF do Cônjuge</label><input type="text" class="form-control" id="edit_cpfConjuge" oninput="mascaraCPF(this)"></div><div class="col-md-3"><label class="form-label">Data de Nascimento</label><input type="date" class="form-control" id="edit_dataNascConjuge"></div></div></div>
+                                    <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-2">Dependentes</h6></div>
+                                    <div class="col-12"><div class="row g-3 align-items-end mb-3 p-3 bg-light border rounded"><div class="col-md-3"><label class="form-label">Nome</label><input type="text" class="form-control" id="edit_nomeDep"></div><div class="col-md-3"><label class="form-label">CPF</label><input type="text" class="form-control" id="edit_cpfDep" oninput="mascaraCPF(this)"></div><div class="col-md-2"><label class="form-label">Parentesco</label><select class="form-select" id="edit_parentescoDep"><option value="Filho(a)">Filho(a)</option><option value="Pai/Mãe">Pai/Mãe</option><option value="Outro">Outro</option></select></div><div class="col-md-2"><label class="form-label">Data Nasc.</label><input type="date" class="form-control" id="edit_dataNascDep"></div><div class="col-md-2"><button type="button" class="btn btn-success w-100" onclick="adicionarDependenteEdicao()"><i class="fas fa-plus"></i> Adicionar</button></div></div><div class="table-responsive"><table class="table table-hover" id="edit_tabelaDependentes"><thead class="table-light"><tr><th>Nome</th><th>CPF</th><th>Parentesco</th><th>Data de Nascimento</th><th>Ação</th></tr></thead><tbody></tbody></table><div id="edit_msgSemDependentes" class="text-center text-muted py-3">Nenhum dependente adicionado.</div></div></div>
+                                </div>
+                            </div>
+                            <!-- ABA 2: DOCUMENTOS -->
+                            <div class="tab-pane fade" id="edit-documentos" role="tabpanel">
+                                <div class="row g-3">
+                                    <div class="col-md-3"><label class="form-label">CPF</label><input type="text" class="form-control" id="edit_cpfTitular" required oninput="mascaraCPF(this)"></div>
+                                    <div class="col-md-3"><label class="form-label">RG</label><input type="text" class="form-control" id="edit_rgTitular"></div>
+                                    <div class="col-md-3"><label class="form-label">Data Emissão RG</label><input type="date" class="form-control" id="edit_dataEmissaoRg"></div>
+                                    <div class="col-md-3"><label class="form-label">Órgão Emissor</label><input type="text" class="form-control" id="edit_orgaoEmissorRg"></div>
+                                    <div class="col-md-3"><label class="form-label">Nº CTPS</label><input type="text" class="form-control" id="edit_numCtps"></div>
+                                    <div class="col-md-3"><label class="form-label">Série CTPS</label><input type="text" class="form-control" id="edit_serieCtps"></div>
+                                    <div class="col-md-2"><label class="form-label">UF CTPS</label><input type="text" class="form-control" id="edit_ufCtps"></div>
+                                    <div class="col-md-4"><label class="form-label">Data Emissão CTPS</label><input type="date" class="form-control" id="edit_dataEmissaoCtps"></div>
+                                    <div class="col-md-4"><label class="form-label">Nº Título Eleitor</label><input type="text" class="form-control" id="edit_numTitulo"></div>
+                                    <div class="col-md-2"><label class="form-label">Zona</label><input type="text" class="form-control" id="edit_zonaTitulo"></div>
+                                    <div class="col-md-2"><label class="form-label">Seção</label><input type="text" class="form-control" id="edit_secaoTitulo"></div>
+                                    <div class="col-md-4"><label class="form-label">Cidade/UF Título</label><input type="text" class="form-control" id="edit_cidadeUfTitulo"></div>
+                                    <div class="col-md-3"><label class="form-label">PIS/PASEP</label><input type="text" class="form-control" id="edit_numPis"></div>
+                                    <div class="col-md-3"><label class="form-label">Data Emissão PIS</label><input type="date" class="form-control" id="edit_dataEmissaoPis"></div>
+                                    <div class="col-md-3"><label class="form-label">CNH</label><input type="text" class="form-control" id="edit_cnh"></div>
+                                    <div class="col-md-3"><label class="form-label">Registro Profissional</label><input type="text" class="form-control" id="edit_registroProfissional"></div>
+                                    
+                                    <!-- Comprovantes / Upload -->
+                                    <div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-2">Comprovantes Digitalizados</h6></div>
+                                    <div class="col-12">
+                                        <div class="alert alert-warning d-flex align-items-center shadow-sm" role="alert">
+                                            <i class="fas fa-exclamation-triangle me-3 fa-2x"></i>
+                                            <div>
+                                                <strong>Atenção:</strong> Insira os documentos que tiveram algum tipo de alteração, para que seja realizada a atualização do sistema da prefeitura.
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="edit_inputAnexos" class="form-label fw-bold">Selecione os arquivos (PDF, Imagens)</label>
+                                            <input class="form-control" type="file" id="edit_inputAnexos" multiple accept="image/*,application/pdf" onchange="processarAnexosEdicao(this)">
+                                        </div>
+                                        <div id="edit_listaAnexos" class="list-group"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- ABA 3: DADOS DE ADMISSÃO -->
+                            <div class="tab-pane fade" id="edit-admissao" role="tabpanel">
+                                <div class="row g-3">
+                                    <div class="col-md-2"><label class="form-label">Matrícula</label><input type="text" class="form-control" id="edit_matricula" required></div>
+                                    <div class="col-md-3"><label class="form-label">Tipo de Admissão</label><select class="form-select" id="edit_tipoAdmissao"><option value="">Selecione</option><option value="Concurso Público">Concurso Público</option><option value="Processo Seletivo">Processo Seletivo</option><option value="Nomeação">Nomeação</option><option value="Contrato">Contrato</option><option value="Outro">Outro</option></select></div>
+                                    <div class="col-md-3"><label class="form-label">Data de Admissão</label><input type="date" class="form-control" id="edit_dataAdmissao"></div>
+                                    <div class="col-md-2"><label class="form-label">Nº da Portaria</label><input type="text" class="form-control" id="edit_numPortaria"></div>
+                                    <div class="col-md-3"><label class="form-label">Tipo de Cargo</label><select class="form-select" id="edit_tipoCargo"><option value="">Selecione</option><option value="Efetivo">Efetivo</option><option value="Comissionado">Comissionado</option><option value="Temporário">Temporário</option><option value="Eletivo">Eletivo</option></select></div>
+                                    <div class="col-md-3"><label class="form-label">Cargo/Função</label><input type="text" class="form-control" id="edit_cargo" required></div>
+                                    <div class="col-md-3"><label class="form-label">Regime de Trabalho</label><input type="text" class="form-control" id="edit_regimeTrabalho"></div>
+                                    <div class="col-md-3"><label class="form-label">Salário Base (R$)</label><input type="text" class="form-control" id="edit_salarioBase" oninput="mascaraMoeda(this)"></div>
+                                    <div class="col-md-4"><label class="form-label">Secretaria</label><input type="text" class="form-control" id="edit_secretaria"></div>
+                                    <div class="col-md-4"><label class="form-label">Setor</label><input type="text" class="form-control" id="edit_setor"></div>
+                                    <div class="col-md-4"><label class="form-label">Unidade de Trabalho</label><input type="text" class="form-control" id="edit_unidadeTrabalho"></div>
+                                    <div class="col-md-12"><label class="form-label">Lotação</label><input type="text" class="form-control" id="edit_lotacao"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" form="formEditarServidor" class="btn btn-warning">Salvar Alterações</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Lixeira -->
+    <div class="modal fade" id="modalLixeira" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="fas fa-trash-restore"></i> Lixeira (Servidores Excluídos)</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped align-middle">
+                            <thead><tr><th>Nome</th><th>CPF</th><th>Cargo</th><th>Excluído em</th><th class="text-end">Ações</th></tr></thead>
+                            <tbody id="tabelaLixeira"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Novo Administrador (Apenas Master) -->
+    <div class="modal fade" id="modalNovoAdmin" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title">Cadastrar Novo Administrador</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formNovoAdmin">
+                        <div class="mb-3">
+                            <label for="nomeAdmin" class="form-label">Nome Completo</label>
+                            <input type="text" class="form-control" id="nomeAdmin" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="cpfAdmin" class="form-label">CPF</label>
+                            <input type="text" class="form-control" id="cpfAdmin" required maxlength="14" oninput="mascaraCPF(this)">
+                        </div>
+                        <div class="mb-3">
+                            <label for="telefoneAdmin" class="form-label">Telefone/WhatsApp</label>
+                            <input type="text" class="form-control" id="telefoneAdmin" required maxlength="15" oninput="mascaraTelefone(this)">
+                        </div>
+                        <div class="mb-3">
+                            <label for="emailAdmin" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="emailAdmin" required>
+                            <div class="form-text">Uma senha aleatória será gerada e enviada para este email.</div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Cadastrar e Enviar Senha</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Admin -->
+    <div class="modal fade" id="modalEditarAdmin" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title">Editar Administrador</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formEditarAdmin">
+                        <input type="hidden" id="editAdminId">
+                        <div class="mb-3">
+                            <label class="form-label">Nome</label>
+                            <input type="text" class="form-control" id="editAdminNome" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">CPF</label>
+                            <input type="text" class="form-control" id="editAdminCpf" required oninput="mascaraCPF(this)">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Telefone</label>
+                            <input type="text" class="form-control" id="editAdminTelefone" required oninput="mascaraTelefone(this)">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" id="editAdminEmail" required>
+                        </div>
+                        <button type="submit" class="btn btn-warning w-100">Salvar Alterações</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Alterar Senha Admin -->
+    <div class="modal fade" id="modalSenhaAdmin" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">Alterar Senha</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formSenhaAdmin">
+                        <input type="hidden" id="senhaAdminId">
+                        <div class="mb-3">
+                            <label class="form-label">Nova Senha</label>
+                            <input type="password" class="form-control" id="novaSenhaAdmin" required>
+                        </div>
+                        <button type="submit" class="btn btn-danger w-100">Atualizar Senha</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Primeiro Acesso (Troca de Senha Obrigatória) -->
+    <div class="modal fade" id="modalPrimeiroAcesso" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-danger">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="fas fa-exclamation-triangle"></i> Primeiro Acesso Detectado</h5>
+                </div>
+                <div class="modal-body">
+                    <p class="text-dark">Olá! Identificamos que este é o seu primeiro acesso ao sistema.</p>
+                    <p class="text-muted small">Por medidas de segurança, a senha temporária enviada para o seu e-mail deve ser alterada imediatamente para uma senha definitiva de sua preferência.</p>
+                    
+                    <form id="formPrimeiroAcesso">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Crie sua Nova Senha</label>
+                            <input type="password" class="form-control" id="novaSenhaDefinitiva" required minlength="6" placeholder="Mínimo 6 caracteres">
+                        </div>
+                        <button type="submit" class="btn btn-danger w-100">Definir Senha e Acessar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Visualizar Anexo -->
+    <div class="modal fade" id="modalVisualizarAnexo" tabindex="-1">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" style="height: 90%;">
+            <div class="modal-content" style="height: 100%;">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title" id="tituloVisualizacao">Visualização de Documento</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0 d-flex justify-content-center align-items-center bg-light" id="corpoVisualizacao" style="overflow: hidden;">
+                    <!-- Conteúdo carregado via JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Progresso -->
+    <div class="modal fade" id="modalProgresso" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center">
+                    <h5 class="mb-3">Processando arquivos...</h5>
+                    <div class="progress">
+                        <div id="barraProgresso" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <small id="textoProgresso" class="text-muted mt-2 d-block">Aguarde enquanto otimizamos seus documentos.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Bibliotecas para geração de PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+    <script>
+        // Theme Logic
+        const toggleTheme = () => {
+            const currentTheme = document.documentElement.getAttribute('data-bs-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-bs-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateIcon(newTheme);
+        }
+
+        const updateIcon = (theme) => {
+            const icon = document.querySelector('#btnTheme i');
+            if(icon) {
+                icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+        }
+
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-bs-theme', savedTheme);
+        document.addEventListener('DOMContentLoaded', () => updateIcon(savedTheme));
+
+        // Validação de datas futuras
+        document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date().toISOString().split('T')[0];
+            ['edit_dataNascTitular', 'edit_dataNascConjuge', 'edit_dataNascDep'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.setAttribute('max', today);
+                    el.addEventListener('input', function() {
+                        if (this.value > today) this.setCustomValidity('A data de nascimento não pode ser futura.');
+                        else this.setCustomValidity('');
+                    });
+                }
+            });
+        });
+
+        let servidores = [];
+        const PLACEHOLDER_FOTO = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23eee'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%23aaa'%3ESem Foto%3C/text%3E%3C/svg%3E";
+        let listaAnexosEdicao = [];
+        const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+        const MAX_TOTAL_SIZE = 25 * 1024 * 1024; // 25MB Limite Total
+
+        function imgError(image) {
+            image.onerror = "";
+            image.src = PLACEHOLDER_FOTO;
+            return true;
+        }
+
+        let currentPage = 1;
+        const itemsPerPage = 10;
+        let totalItems = 0;
+        let searchTimeout;
+        let currentStatus = 'finalizado';
+
+        // Verificação de Segurança
+        const token = localStorage.getItem('adminToken');
+        const role = localStorage.getItem('adminRole');
+        const primeiroAcesso = localStorage.getItem('primeiroAcesso');
+
+        if (!token) {
+            window.location.href = 'login.html';
+        }
+
+        // Configuração para Master
+        if (role === 'master') {
+            document.getElementById('btnNovoAdmin').style.display = 'inline-block';
+            document.getElementById('badgeMaster').style.display = 'inline-block';
+            document.getElementById('areaMaster').style.display = 'block';
+            carregarAdmins();
+        }
+
+        // Verifica se é primeiro acesso ao carregar a página
+        document.addEventListener('DOMContentLoaded', () => {
+            if (primeiroAcesso == 1) {
+                const modal = new bootstrap.Modal(document.getElementById('modalPrimeiroAcesso'));
+                modal.show();
+            } else {
+                carregarDadosAPI();
+            }
+        });
+
+        // Lógica para salvar a nova senha do primeiro acesso
+        document.getElementById('formPrimeiroAcesso').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const id = localStorage.getItem('adminId');
+            const senha = document.getElementById('novaSenhaDefinitiva').value;
+
+            try {
+                const response = await fetch('http://localhost:3000/api/admin/definir-senha', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, senha })
+                });
+                
+                if (response.ok) {
+                    alert('Senha definida com sucesso! Bem-vindo ao SICASV.');
+                    localStorage.setItem('primeiroAcesso', 0); // Atualiza localmente
+                    bootstrap.Modal.getInstance(document.getElementById('modalPrimeiroAcesso')).hide();
+                    carregarDadosAPI();
+                } else {
+                    alert('Erro ao definir senha.');
+                }
+            } catch (error) {
+                alert('Erro de conexão.');
+            }
+        });
+
+        function logout() {
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminRole');
+            localStorage.removeItem('adminId');
+            localStorage.removeItem('primeiroAcesso');
+            window.location.href = 'login.html';
+        }
+
+        function mudarStatus(status, element) {
+            currentStatus = status;
+            // Atualiza UI das abas
+            document.querySelectorAll('#statusTabs .nav-link').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+            
+            // Recarrega dados
+            carregarDadosAPI(1);
+        }
+
+        // Função para buscar dados reais do backend
+        async function carregarDadosAPI(page = 1) {
+            currentPage = page;
+            
+            const search = document.getElementById('searchInput').value;
+            const cargo = document.getElementById('filtroCargo').value;
+            const secretaria = document.getElementById('filtroSecretaria').value;
+            const tipoAdmissao = document.getElementById('filtroTipoAdmissao').value;
+
+            const params = new URLSearchParams({
+                page: page,
+                limit: itemsPerPage,
+                search: search,
+                cargo: cargo,
+                secretaria: secretaria,
+                tipoAdmissao: tipoAdmissao,
+                status: currentStatus
+            });
+
+            try {
+                const response = await fetch(`http://localhost:3000/api/servidores?${params.toString()}`);
+                const result = await response.json();
+                
+                servidores = result.data;
+                totalItems = result.total;
+                carregarServidores(servidores);
+                atualizarPaginacao();
+            } catch (error) {
+                console.error('Erro ao carregar dados:', error);
+                document.getElementById('listaServidores').innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4">Erro de conexão com o servidor. Verifique se o backend está rodando.</td></tr>';
+                document.getElementById('totalRegistros').innerText = 'Erro de conexão';
+            }
+        }
+
+        function carregarServidores(dados) {
+            const tbody = document.getElementById('listaServidores');
+            tbody.innerHTML = '';
+            
+            if (dados.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">Nenhum registro encontrado.</td></tr>';
+            }
+
+            dados.forEach(s => {
+                const statusBadge = s.status === 'rascunho' 
+                    ? '<span class="badge bg-warning text-dark" title="Rascunho"><i class="fas fa-pencil-alt"></i></span>' 
+                    : '<span class="badge bg-success" title="Finalizado"><i class="fas fa-check"></i></span>';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <img src="http://localhost:3000/api/servidor/${s.id}/foto" 
+                             class="rounded-circle border shadow-sm" 
+                             style="width: 40px; height: 40px; object-fit: cover;"
+                             onerror="imgError(this)">
+                    </td>
+                    <td class="text-center">${statusBadge}</td>
+                    <td class="fw-bold text-primary">${s.matricula}</td>
+                    <td>${s.nome}</td>
+                    <td>${s.cpf}</td>
+                    <td>${s.cargo}</td>
+                    <td><span class="badge bg-secondary">${s.lotacao}</span></td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-info text-white btn-action" onclick="verDetalhes(${s.id})" title="Ver Detalhes"><i class="fas fa-eye"></i></button>
+                        <button class="btn btn-sm btn-warning text-white btn-action" onclick="abrirModalEdicao(${s.id})" title="Editar"><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-sm btn-danger btn-action" onclick="excluirServidor(${s.id})" title="Excluir"><i class="fas fa-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+            document.getElementById('totalRegistros').innerText = `Página ${currentPage} de ${totalPages} (Total: ${totalItems} registros)`;
+        }
+
+        function filtrarServidores() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                carregarDadosAPI(1);
+            }, 300);
+        }
+
+        function atualizarPaginacao() {
+            const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+            const paginationElement = document.querySelector('.pagination');
+            paginationElement.innerHTML = '';
+
+            // Botão Anterior
+            const prevLi = document.createElement('li');
+            prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+            prevLi.innerHTML = `<a class="page-link" href="#" onclick="event.preventDefault(); ${currentPage > 1 ? `carregarDadosAPI(${currentPage - 1})` : ''}">Anterior</a>`;
+            paginationElement.appendChild(prevLi);
+
+            // Lógica de Janela de Páginas
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, currentPage + 2);
+
+            if (startPage > 1) {
+                 paginationElement.innerHTML += `<li class="page-item"><a class="page-link" href="#" onclick="event.preventDefault(); carregarDadosAPI(1)">1</a></li>`;
+                 if (startPage > 2) paginationElement.innerHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                const li = document.createElement('li');
+                li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+                li.innerHTML = `<a class="page-link" href="#" onclick="event.preventDefault(); carregarDadosAPI(${i})">${i}</a>`;
+                paginationElement.appendChild(li);
+            }
+
+            if (endPage < totalPages) {
+                 if (endPage < totalPages - 1) paginationElement.innerHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+                 paginationElement.innerHTML += `<li class="page-item"><a class="page-link" href="#" onclick="event.preventDefault(); carregarDadosAPI(${totalPages})">${totalPages}</a></li>`;
+            }
+
+            // Botão Próximo
+            const nextLi = document.createElement('li');
+            nextLi.className = `page-item ${currentPage >= totalPages ? 'disabled' : ''}`;
+            nextLi.innerHTML = `<a class="page-link" href="#" onclick="event.preventDefault(); ${currentPage < totalPages ? `carregarDadosAPI(${currentPage + 1})` : ''}">Próximo</a>`;
+            paginationElement.appendChild(nextLi);
+        }
+
+        async function verDetalhes(id) {
+            let s = servidores.find(item => item.id === id);
+            
+            try {
+                const response = await fetch(`http://localhost:3000/api/servidor/${id}`);
+                if (response.ok) {
+                    s = await response.json();
+                }
+            } catch (e) {
+                console.error("Erro ao buscar detalhes completos:", e);
+            }
+
+            if (s) {
+                document.getElementById('view_servidorId').value = s.id;
+                // Foto
+                document.getElementById('view_fotoPerfil').src = `http://localhost:3000/api/servidor/${s.id}/foto`;
+                document.getElementById('view_fotoPerfil').onerror = function() { this.src = PLACEHOLDER_FOTO; };
+
+                // Preencher Dados Pessoais
+                document.getElementById('view_nomeTitular').value = s.nome || '';
+                document.getElementById('view_dataNascTitular').value = s.dataNasc || '';
+                document.getElementById('view_sexo').value = s.sexo || '';
+                document.getElementById('view_raca').value = s.raca || '';
+                document.getElementById('view_estadoCivil').value = s.estadoCivil || '';
+                document.getElementById('view_grauInstrucao').value = s.grauInstrucao || '';
+                document.getElementById('view_nomePai').value = s.nomePai || '';
+                document.getElementById('view_nomeMae').value = s.nomeMae || '';
+                document.getElementById('view_email').value = s.email || '';
+                document.getElementById('view_telefone').value = s.telefone || '';
+                document.getElementById('view_celular').value = s.celular || '';
+                document.getElementById('view_cep').value = s.cep || '';
+                document.getElementById('view_endereco').value = s.endereco || '';
+                document.getElementById('view_numero').value = s.numero || '';
+                document.getElementById('view_bairro').value = s.bairro || '';
+                document.getElementById('view_cidade').value = s.cidade || '';
+                document.getElementById('view_uf').value = s.uf || '';
+                document.getElementById('view_nacionalidade').value = s.nacionalidade || '';
+                document.getElementById('view_naturalidade').value = s.naturalidade || '';
+
+                // Preencher Documentos
+                document.getElementById('view_cpfTitular').value = s.cpf || '';
+                document.getElementById('view_rgTitular').value = s.rg || '';
+                document.getElementById('view_dataEmissaoRg').value = s.dataEmissaoRg || '';
+                document.getElementById('view_orgaoEmissorRg').value = s.orgaoEmissorRg || '';
+                document.getElementById('view_numCtps').value = s.numCtps || '';
+                document.getElementById('view_serieCtps').value = s.serieCtps || '';
+                document.getElementById('view_ufCtps').value = s.ufCtps || '';
+                document.getElementById('view_dataEmissaoCtps').value = s.dataEmissaoCtps || '';
+                document.getElementById('view_numTitulo').value = s.numTitulo || '';
+                document.getElementById('view_zonaTitulo').value = s.zonaTitulo || '';
+                document.getElementById('view_secaoTitulo').value = s.secaoTitulo || '';
+                document.getElementById('view_cidadeUfTitulo').value = s.cidadeUfTitulo || '';
+                document.getElementById('view_numPis').value = s.numPis || '';
+                document.getElementById('view_dataEmissaoPis').value = s.dataEmissaoPis || '';
+                document.getElementById('view_cnh').value = s.cnh || '';
+                document.getElementById('view_registroProfissional').value = s.registroProfissional || '';
+
+                // Preencher Anexos
+                const listaAnexos = document.getElementById('view_listaAnexos');
+                const msgSemAnexos = document.getElementById('view_msgSemAnexos');
+                const btnZip = document.getElementById('btnBaixarZip');
+                listaAnexos.innerHTML = '';
+
+                if (s.anexos && s.anexos.length > 0) {
+                    msgSemAnexos.style.display = 'none';
+                    btnZip.style.display = 'inline-block';
+                    btnZip.onclick = () => window.open(`http://localhost:3000/api/servidor/${s.id}/anexos/zip`, '_blank');
+
+                    s.anexos.forEach(a => {
+                        const item = document.createElement('div');
+                        item.className = 'list-group-item d-flex justify-content-between align-items-center';
+                        
+                        const infoDiv = document.createElement('div');
+                        infoDiv.innerHTML = `<i class="fas fa-file-alt me-2 text-secondary"></i> ${a.nome}`;
+
+                        const btnDiv = document.createElement('div');
+                        
+                        // Botão Visualizar
+                        const btnPreview = document.createElement('button');
+                        btnPreview.className = 'btn btn-sm btn-outline-secondary me-2';
+                        btnPreview.innerHTML = '<i class="fas fa-eye"></i> Visualizar';
+                        btnPreview.onclick = () => visualizarAnexo(a.id, a.nome, a.tipo);
+                        
+                        // Botão Baixar
+                        const btnDownload = document.createElement('a');
+                        btnDownload.className = 'btn btn-sm btn-outline-primary';
+                        btnDownload.innerHTML = '<i class="fas fa-download"></i> Baixar';
+                        btnDownload.href = `http://localhost:3000/api/anexo/${a.id}/download`;
+                        btnDownload.download = a.nome;
+
+                        btnDiv.appendChild(btnPreview);
+                        btnDiv.appendChild(btnDownload);
+                        
+                        item.appendChild(infoDiv);
+                        item.appendChild(btnDiv);
+                        listaAnexos.appendChild(item);
+                    });
+                } else {
+                    msgSemAnexos.style.display = 'block';
+                    btnZip.style.display = 'none';
+                }
+
+                // Preencher Admissão
+                document.getElementById('view_matricula').value = s.matricula || '';
+                document.getElementById('view_tipoAdmissao').value = s.tipoAdmissao || '';
+                document.getElementById('view_dataAdmissao').value = s.dataAdmissao || '';
+                document.getElementById('view_numPortaria').value = s.numPortaria || '';
+                document.getElementById('view_tipoCargo').value = s.tipoCargo || '';
+                document.getElementById('view_cargo').value = s.cargo || '';
+                document.getElementById('view_regimeTrabalho').value = s.regimeTrabalho || '';
+                document.getElementById('view_salarioBase').value = s.salarioBase ? 'R$ ' + parseFloat(s.salarioBase).toLocaleString('pt-BR', {minimumFractionDigits: 2}) : '';
+                document.getElementById('view_secretaria').value = s.secretaria || '';
+                document.getElementById('view_setor').value = s.setor || '';
+                document.getElementById('view_unidadeTrabalho').value = s.unidadeTrabalho || '';
+                document.getElementById('view_lotacao').value = s.lotacao || '';
+
+                // Calcular Tempo de Serviço (Visualização)
+                if (s.dataAdmissao) {
+                    const inicio = new Date(s.dataAdmissao);
+                    const hoje = new Date();
+                    let anos = hoje.getFullYear() - inicio.getFullYear();
+                    const m = hoje.getMonth() - inicio.getMonth();
+                    if (m < 0 || (m === 0 && hoje.getDate() < inicio.getDate())) anos--;
+                    document.getElementById('view_tempoServico').value = anos >= 0 ? anos + ' anos' : '0 anos';
+                } else {
+                    document.getElementById('view_tempoServico').value = '';
+                }
+
+                // Cônjuge
+                const areaConjuge = document.getElementById('view_areaConjuge');
+                const msgSemConjuge = document.getElementById('view_msgSemConjuge');
+                if (s.conjuge && s.conjuge.temConjuge) {
+                    areaConjuge.style.display = 'block';
+                    msgSemConjuge.style.display = 'none';
+                    document.getElementById('view_nomeConjuge').value = s.conjuge.nome || '';
+                    document.getElementById('view_cpfConjuge').value = s.conjuge.cpf || '';
+                    document.getElementById('view_dataNascConjuge').value = s.conjuge.dataNasc || '';
+                } else {
+                    areaConjuge.style.display = 'none';
+                    msgSemConjuge.style.display = 'block';
+                }
+
+                // Dependentes
+                const tbodyDep = document.querySelector('#view_tabelaDependentes tbody');
+                tbodyDep.innerHTML = '';
+                const msgSemDep = document.getElementById('view_msgSemDependentes');
+                
+                if (s.dependentes && s.dependentes.length > 0) {
+                    msgSemDep.style.display = 'none';
+                    s.dependentes.forEach(d => {
+                        const tr = document.createElement('tr');
+                        const dataF = d.dataNasc ? d.dataNasc.split('-').reverse().join('/') : '-';
+                        tr.innerHTML = `
+                            <td>${d.nome}</td>
+                            <td>${d.cpf || '-'}</td>
+                            <td>${d.parentesco}</td>
+                            <td>${dataF}</td>
+                        `;
+                        tbodyDep.appendChild(tr);
+                    });
+                } else {
+                    msgSemDep.style.display = 'block';
+                }
+
+                new bootstrap.Modal(document.getElementById('modalDetalhes')).show();
+            }
+        }
+
+        async function uploadAnexoDetalhes(input) {
+            const id = document.getElementById('view_servidorId').value;
+            if (!id) return;
+            
+            if (input.files && input.files.length > 0) {
+                // Feedback visual
+                const btn = input.previousElementSibling;
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+                btn.disabled = true;
+                document.body.style.cursor = 'wait';
+
+                let sucessos = 0;
+                let erros = 0;
+                const total = input.files.length;
+
+                for (let i = 0; i < total; i++) {
+                    const file = input.files[i];
+
+                    if (file.size > MAX_FILE_SIZE) {
+                        alert(`O arquivo "${file.name}" excede o tamanho máximo permitido de 10MB.`);
+                        erros++;
+                        continue;
+                    }
+
+                    try {
+                        let conteudo;
+                        let nome = file.name;
+                        let tipo = file.type;
+
+                        if (file.type.startsWith('image/')) {
+                            conteudo = await comprimirImagem(file);
+                            nome = file.name.replace(/\.[^/.]+$/, "") + ".jpg";
+                            tipo = "image/jpeg";
+                        } else {
+                            conteudo = await new Promise((resolve, reject) => {
+                                const reader = new FileReader();
+                                reader.onload = (e) => resolve(e.target.result);
+                                reader.onerror = (e) => reject(e);
+                                reader.readAsDataURL(file);
+                            });
+                        }
+
+                        const response = await fetch(`http://localhost:3000/api/servidor/${id}/anexo`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'x-admin-id': localStorage.getItem('adminId') },
+                            body: JSON.stringify({ nome, tipo, conteudo })
+                        });
+
+                        if (response.ok) {
+                            sucessos++;
+                        } else {
+                            const resJson = await response.json();
+                            if (response.status === 409) {
+                                alert(`Erro no arquivo "${file.name}": ${resJson.error}`);
+                            }
+                            erros++;
+                        }
+                    } catch (e) { 
+                        console.error(e); 
+                        erros++;
+                    }
+                }
+
+                btn.innerHTML = originalHtml; 
+                btn.disabled = false; 
+                input.value = ''; 
+                document.body.style.cursor = 'default';
+
+                if (sucessos > 0) {
+                    alert(`${sucessos} documento(s) adicionado(s) com sucesso!${erros > 0 ? ` (${erros} erros)` : ''}`);
+                    verDetalhes(parseInt(id)); // Recarrega a ficha para mostrar os novos anexos
+                } else if (erros > 0) {
+                    alert('Erro ao enviar documentos.');
+                }
+            }
+        }
+
+        async function imprimirLista() {
+            try {
+                const search = document.getElementById('searchInput').value;
+                const cargo = document.getElementById('filtroCargo').value;
+                const secretaria = document.getElementById('filtroSecretaria').value;
+                const tipoAdmissao = document.getElementById('filtroTipoAdmissao').value;
+
+                const params = new URLSearchParams({
+                    limit: -1, // Pega tudo
+                    search: search,
+                    cargo: cargo,
+                    secretaria: secretaria,
+                    tipoAdmissao: tipoAdmissao,
+                    status: currentStatus
+                });
+
+                const response = await fetch(`http://localhost:3000/api/servidores?${params.toString()}`);
+                const result = await response.json();
+                const dados = result.data;
+
+                if (!dados || dados.length === 0) {
+                    alert('Nenhum registro encontrado para impressão.');
+                    return;
+                }
+
+                const janela = window.open('', '_blank');
+                janela.document.write(`
+                    <html>
+                    <head>
+                        <title>Relatório de Servidores - SICASV</title>
+                        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                        <style>
+                            body { padding: 20px; font-family: sans-serif; }
+                            .header-print { text-align: center; margin-bottom: 30px; }
+                            table { width: 100%; font-size: 12px; }
+                            @media print { .no-print { display: none; } }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header-print">
+                            <h4>SICASV - Relatório de Servidores</h4>
+                            <small>Gerado em: ${new Date().toLocaleString()}</small>
+                        </div>
+                        <table class="table table-bordered table-striped table-sm">
+                            <thead class="table-light">
+                                <tr><th>Matrícula</th><th>Nome</th><th>CPF</th><th>Cargo</th><th>Lotação</th><th>Admissão</th></tr>
+                            </thead>
+                            <tbody>
+                                ${dados.map(s => `<tr><td>${s.matricula || ''}</td><td>${s.nome || ''}</td><td>${s.cpf || ''}</td><td>${s.cargo || ''}</td><td>${s.lotacao || ''}</td><td>${s.dataAdmissao ? s.dataAdmissao.split('-').reverse().join('/') : '-'}</td></tr>`).join('')}
+                            </tbody>
+                        </table>
+                        <script>window.onload = function() { window.print(); }<\/script>
+                    </body>
+                    </html>
+                `);
+                janela.document.close();
+            } catch (e) {
+                console.error(e);
+                alert('Erro ao gerar impressão.');
+            }
+        }
+
+        // Função auxiliar para buscar dados filtrados para exportação
+        async function obterDadosParaExportacao() {
+            const search = document.getElementById('searchInput').value;
+            const cargo = document.getElementById('filtroCargo').value;
+            const secretaria = document.getElementById('filtroSecretaria').value;
+            const tipoAdmissao = document.getElementById('filtroTipoAdmissao').value;
+
+            const params = new URLSearchParams({
+                limit: -1, // Pega tudo
+                search: search,
+                cargo: cargo,
+                secretaria: secretaria,
+                tipoAdmissao: tipoAdmissao,
+                status: currentStatus
+            });
+
+            const response = await fetch(`http://localhost:3000/api/servidores?${params.toString()}`);
+            const result = await response.json();
+            return result.data;
+        }
+
+        async function enviarPDFEmail() {
+            try {
+                const dados = await obterDadosParaExportacao();
+                if (!dados.length) return alert('Sem dados para gerar o relatório.');
+
+                const emailDestino = prompt("Digite o email para onde deseja enviar o relatório:");
+                if (!emailDestino) return;
+                if (!emailDestino.includes('@')) return alert('Email inválido.');
+
+                document.body.style.cursor = 'wait';
+
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+
+                doc.text("Relatório de Servidores - SICASV", 14, 15);
+                doc.setFontSize(10);
+                doc.text(`Gerado em: ${new Date().toLocaleString()}`, 14, 22);
+
+                const tableColumn = ["Matrícula", "Nome", "CPF", "Cargo", "Lotação", "Admissão"];
+                const tableRows = dados.map(s => [
+                    s.matricula,
+                    s.nome,
+                    s.cpf,
+                    s.cargo,
+                    s.lotacao,
+                    s.dataAdmissao ? s.dataAdmissao.split('-').reverse().join('/') : '-'
+                ]);
+
+                doc.autoTable({
+                    head: [tableColumn],
+                    body: tableRows,
+                    startY: 30,
+                });
+
+                // Obter Base64 do PDF
+                const pdfBase64 = doc.output('datauristring');
+
+                const response = await fetch('http://localhost:3000/api/admin/enviar-relatorio', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        email: emailDestino, 
+                        pdfBase64: pdfBase64,
+                        nomeRelatorio: 'servidores_sicasv'
+                    })
+                });
+
+                const result = await response.json();
+                document.body.style.cursor = 'default';
+
+                if (response.ok) {
+                    alert(result.message);
+                } else {
+                    alert('Erro ao enviar: ' + result.error);
+                }
+
+            } catch (e) {
+                document.body.style.cursor = 'default';
+                console.error(e);
+                alert('Erro ao processar envio do relatório.');
+            }
+        }
+
+        async function exportarPDF() {
+            try {
+                const dados = await obterDadosParaExportacao();
+                if (!dados.length) return alert('Sem dados para exportar.');
+
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+
+                doc.text("Relatório de Servidores - SICASV", 14, 15);
+                doc.setFontSize(10);
+                doc.text(`Gerado em: ${new Date().toLocaleString()}`, 14, 22);
+
+                const tableColumn = ["Matrícula", "Nome", "CPF", "Cargo", "Lotação", "Admissão"];
+                const tableRows = dados.map(s => [
+                    s.matricula,
+                    s.nome,
+                    s.cpf,
+                    s.cargo,
+                    s.lotacao,
+                    s.dataAdmissao ? s.dataAdmissao.split('-').reverse().join('/') : '-'
+                ]);
+
+                doc.autoTable({
+                    head: [tableColumn],
+                    body: tableRows,
+                    startY: 30,
+                });
+
+                doc.save("servidores_sicasv.pdf");
+            } catch (e) {
+                console.error(e);
+                alert('Erro ao gerar PDF.');
+            }
+        }
+
+        async function exportarExcel() {
+            try {
+                const dados = await obterDadosParaExportacao();
+                if (!dados.length) return alert('Sem dados para exportar.');
+
+                let html = '<meta charset="utf-8"><table border="1"><thead><tr><th>Matrícula</th><th>Nome</th><th>CPF</th><th>Cargo</th><th>Lotação</th><th>Admissão</th></tr></thead><tbody>';
+                dados.forEach(s => {
+                    html += `<tr><td>${s.matricula}</td><td>${s.nome}</td><td>${s.cpf}</td><td>${s.cargo}</td><td>${s.lotacao}</td><td>${s.dataAdmissao || ''}</td></tr>`;
+                });
+                html += '</tbody></table>';
+
+                const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'servidores_sicasv.xls';
+                link.click();
+            } catch (e) {
+                alert('Erro ao exportar Excel.');
+            }
+        }
+
+        async function exportarDOC() {
+            try {
+                const dados = await obterDadosParaExportacao();
+                if (!dados.length) return alert('Sem dados para exportar.');
+
+                let html = '<meta charset="utf-8"><html><body><h2>Relatório de Servidores</h2><table border="1" style="width:100%; border-collapse: collapse;"><thead><tr style="background-color:#f2f2f2;"><th>Matrícula</th><th>Nome</th><th>CPF</th><th>Cargo</th><th>Lotação</th></tr></thead><tbody>';
+                dados.forEach(s => {
+                    html += `<tr><td>${s.matricula}</td><td>${s.nome}</td><td>${s.cpf}</td><td>${s.cargo}</td><td>${s.lotacao}</td></tr>`;
+                });
+                html += '</tbody></table></body></html>';
+
+                const blob = new Blob([html], { type: 'application/msword' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'servidores_sicasv.doc';
+                link.click();
+            } catch (e) {
+                alert('Erro ao exportar Word.');
+            }
+        }
+
+        async function exportarTXT() {
+            try {
+                const dados = await obterDadosParaExportacao();
+                if (!dados.length) return alert('Sem dados para exportar.');
+
+                let txt = "MATRÍCULA | NOME | CPF | CARGO | LOTAÇÃO\n" + "-".repeat(80) + "\n";
+                dados.forEach(s => {
+                    txt += `${s.matricula.padEnd(10)} | ${s.nome.padEnd(30)} | ${s.cpf.padEnd(14)} | ${s.cargo.padEnd(20)} | ${s.lotacao}\n`;
+                });
+
+                const blob = new Blob([txt], { type: 'text/plain' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'servidores_sicasv.txt';
+                link.click();
+            } catch (e) {
+                alert('Erro ao exportar TXT.');
+            }
+        }
+
+        async function exportarCSV() {
+            try {
+                const dadosExport = await obterDadosParaExportacao();
+                if (!dadosExport.length) return alert('Sem dados para exportar.');
+
+                let csvContent = "data:text/csv;charset=utf-8,Matrícula,Nome,CPF,Cargo,Lotação\n";
+                dadosExport.forEach(s => {
+                    csvContent += `${s.matricula},"${s.nome}",${s.cpf},"${s.cargo}","${s.lotacao}"\n`;
+                });
+                const link = document.createElement("a");
+                link.setAttribute("href", encodeURI(csvContent));
+                link.setAttribute("download", "servidores_sicasv.csv");
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } catch (e) {
+                alert('Erro ao exportar dados.');
+            }
+        }
+
+    async function visualizarAnexo(id, nome, tipo) {
+        const el = document.getElementById('modalVisualizarAnexo');
+        const modal = bootstrap.Modal.getOrCreateInstance(el);
+        document.getElementById('tituloVisualizacao').innerText = nome;
+        const corpo = document.getElementById('corpoVisualizacao');
+        
+        // Mostra spinner de carregamento
+        corpo.innerHTML = '<div class="text-center p-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">Carregando documento...</p></div>';
+        
+        modal.show();
+
+        try {
+            const res = await fetch(`http://localhost:3000/api/anexo/${id}`);
+            if (!res.ok) throw new Error('Erro ao carregar');
+            const data = await res.json();
+            const conteudo = data.conteudo;
+
+            corpo.innerHTML = '';
+            if (tipo.startsWith('image/')) {
+                const img = document.createElement('img');
+                    // Garante que o prefixo data URI esteja presente para visualização correta
+                    if (conteudo && !conteudo.startsWith('data:')) {
+                        img.src = `data:${tipo};base64,${conteudo}`;
+                    } else {
+                        img.src = conteudo;
+                    }
+                img.className = 'img-fluid';
+                img.style.maxHeight = '100%';
+                corpo.appendChild(img);
+            } else if (tipo === 'application/pdf') {
+                const object = document.createElement('object');
+                object.data = conteudo;
+                object.type = 'application/pdf';
+                object.width = '100%';
+                object.height = '100%';
+                object.innerHTML = `<p>Seu navegador não suporta visualização de PDF. <a href="http://localhost:3000/api/anexo/${id}/download" download="${nome}">Baixe aqui</a>.</p>`;
+                corpo.appendChild(object);
+            } else {
+                corpo.innerHTML = '<div class="p-5 text-center"><h5>Visualização não disponível.</h5><p>Utilize o botão de download.</p></div>';
+            }
+        } catch (e) {
+            corpo.innerHTML = '<div class="text-center p-5 text-danger"><i class="fas fa-exclamation-circle fa-2x mb-2"></i><br>Erro ao carregar o anexo. Tente baixar o arquivo.</div>';
+        }
+    }
+
+        async function excluirServidor(id) {
+            if (!confirm('Tem certeza que deseja excluir este servidor? Esta ação não pode ser desfeita.')) return;
+
+            try {
+                const response = await fetch(`http://localhost:3000/api/servidor/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'x-admin-id': localStorage.getItem('adminId') }
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    alert(result.message);
+                    carregarDadosAPI(); // Recarrega a lista
+                } else {
+                    alert('Erro: ' + result.error);
+                }
+            } catch (error) {
+                alert('Erro de conexão ao tentar excluir.');
+            }
+        }
+
+        async function abrirModalEdicao(id) {
+            let s = servidores.find(item => item.id === id);
+            
+            try {
+                const response = await fetch(`http://localhost:3000/api/servidor/${id}?edit=true`);
+                if (response.ok) {
+                    s = await response.json();
+                }
+            } catch (e) {
+                console.error("Erro ao buscar dados para edição:", e);
+            }
+
+            if (!s) return alert('Servidor não encontrado!');
+
+            document.getElementById('editServidorId').value = id;
+
+            // Foto
+            document.getElementById('edit_previewFoto').src = s.foto_perfil || PLACEHOLDER_FOTO;
+
+            // Preenche Titular
+            for (const key in s) {
+                const el = document.getElementById(`edit_${key}`);
+                if (el) {
+                    if (key === 'salarioBase' && s[key]) {
+                        mascaraMoeda(el, s[key]);
+                    } else {
+                        el.value = s[key] || '';
+                    }
+                }
+            }
+            // Renomeando campos que não batem
+            document.getElementById('edit_nomeTitular').value = s.nome;
+            document.getElementById('edit_dataNascTitular').value = s.dataNasc;
+            document.getElementById('edit_cpfTitular').value = s.cpf;
+            document.getElementById('edit_rgTitular').value = s.rg;
+
+            // Preenche Cônjuge
+            const temConjugeCheck = document.getElementById('edit_temConjuge');
+            temConjugeCheck.checked = s.conjuge?.temConjuge;
+            toggleConjugeEdicao();
+            if (s.conjuge?.temConjuge) {
+                document.getElementById('edit_nomeConjuge').value = s.conjuge.nome || '';
+                document.getElementById('edit_cpfConjuge').value = s.conjuge.cpf || '';
+                document.getElementById('edit_dataNascConjuge').value = s.conjuge.dataNasc || '';
+            }
+
+            // Preenche Dependentes
+            const tbodyDep = document.querySelector('#edit_tabelaDependentes tbody');
+            tbodyDep.innerHTML = '';
+            if (s.dependentes && s.dependentes.length > 0) {
+                document.getElementById('edit_msgSemDependentes').style.display = 'none';
+                s.dependentes.forEach(d => adicionarDependenteEdicao(d));
+            } else {
+                document.getElementById('edit_msgSemDependentes').style.display = 'block';
+            }
+
+            // Preenche Anexos
+            listaAnexosEdicao = [];
+            if (s.anexos && s.anexos.length > 0) {
+                listaAnexosEdicao = s.anexos.map(a => ({ id: a.id, nome: a.nome, tipo: a.tipo, conteudo: a.conteudo }));
+            }
+            atualizarVisualizacaoAnexosEdicao();
+
+            new bootstrap.Modal(document.getElementById('modalEditarServidor')).show();
+        }
+
+        function toggleConjugeEdicao() {
+            document.getElementById('edit_areaConjuge').style.display = document.getElementById('edit_temConjuge').checked ? 'block' : 'none';
+        }
+
+        function adicionarDependenteEdicao(dep = null) {
+            const nome = dep ? dep.nome : document.getElementById('edit_nomeDep').value;
+            const cpf = dep ? dep.cpf : document.getElementById('edit_cpfDep').value;
+            const parentesco = dep ? dep.parentesco : document.getElementById('edit_parentescoDep').value;
+            const dataNasc = dep ? dep.dataNasc : document.getElementById('edit_dataNascDep').value;
+
+            if (!nome || !dataNasc) {
+                if (!dep) alert('Preencha o nome e a data de nascimento do dependente.');
+                return;
+            }
+
+            const today = new Date().toISOString().split('T')[0];
+            if (!dep && dataNasc > today) {
+                alert('A data de nascimento do dependente não pode ser futura.');
+                return;
+            }
+
+            const tbody = document.querySelector('#edit_tabelaDependentes tbody');
+            document.getElementById('edit_msgSemDependentes').style.display = 'none';
+
+            const tr = document.createElement('tr');
+            const dataFormatada = dataNasc ? dataNasc.split('-').reverse().join('/') : '';
+            
+            tr.innerHTML = `
+                <td>${nome}</td>
+                <td>${cpf || ''}</td>
+                <td>${parentesco}</td>
+                <td data-raw="${dataNasc || ''}">${dataFormatada}</td>
+                <td><button type="button" class="btn btn-sm btn-danger" onclick="this.closest('tr').remove()"><i class="fas fa-trash"></i></button></td>
+            `;
+            tbody.appendChild(tr);
+
+            if (!dep) { // Limpa campos apenas se não estiver populando
+                document.getElementById('edit_nomeDep').value = '';
+                document.getElementById('edit_cpfDep').value = '';
+                document.getElementById('edit_dataNascDep').value = '';
+            }
+        }
+
+        // Função utilitária para comprimir imagens
+        function comprimirImagem(file, quality = 0.7, maxWidth = 1200) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > maxWidth) {
+                            height *= maxWidth / width;
+                            width = maxWidth;
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        resolve(canvas.toDataURL('image/jpeg', quality));
+                    };
+                    img.onerror = (err) => reject(err);
+                };
+                reader.onerror = (err) => reject(err);
+            });
+        }
+
+        async function processarFoto(input, imgId) {
+            if (input.files && input.files[0]) {
+                const modalElement = document.getElementById('modalProgresso');
+                const modalProgresso = new bootstrap.Modal(modalElement);
+                const barra = document.getElementById('barraProgresso');
+                const texto = document.getElementById('textoProgresso');
+
+                modalProgresso.show();
+                barra.style.width = '50%';
+                texto.innerText = 'Processando foto de perfil...';
+
+                try {
+                    const compressedBase64 = await comprimirImagem(input.files[0]);
+                    document.getElementById(imgId).src = compressedBase64;
+                    barra.style.width = '100%';
+                } catch (error) {
+                    console.error("Erro ao processar foto:", error);
+                } finally {
+                    setTimeout(() => modalProgresso.hide(), 500);
+                }
+            }
+        }
+
+        async function processarAnexosEdicao(input) {
+            if (input.files && input.files.length > 0) {
+                const modalElement = document.getElementById('modalProgresso');
+                const modalProgresso = new bootstrap.Modal(modalElement);
+                const barra = document.getElementById('barraProgresso');
+                const texto = document.getElementById('textoProgresso');
+                
+                modalProgresso.show();
+                barra.style.width = '0%';
+                
+                const total = input.files.length;
+
+                for (let i = 0; i < total; i++) {
+                    const file = input.files[i];
+                    texto.innerText = `Processando ${i + 1} de ${total}: ${file.name}`;
+
+                    // Calcula o tamanho total atual dos anexos na edição
+                    const currentTotalSize = listaAnexosEdicao.reduce((acc, item) => {
+                        const content = item.conteudo && item.conteudo.includes(',') ? item.conteudo.split(',')[1] : (item.conteudo || '');
+                        return acc + (content.length * 3) / 4;
+                    }, 0);
+
+                    if (file.size > MAX_FILE_SIZE) {
+                        alert(`O arquivo "${file.name}" excede o tamanho máximo permitido de 10MB e não será anexado.`);
+                        continue;
+                    }
+                    
+                    // Verifica se a adição excederia o limite total
+                    if (currentTotalSize + file.size > MAX_TOTAL_SIZE) {
+                        alert(`O arquivo "${file.name}" não será adicionado pois o total de anexos excederia o limite de 25MB.`);
+                        continue;
+                    }
+
+                    if (file.type.startsWith('image/')) {
+                        try {
+                            const compressedContent = await comprimirImagem(file);
+                            // Ajusta extensão e tipo para JPEG
+                            const newName = file.name.replace(/\.[^/.]+$/, "") + ".jpg";
+                            listaAnexosEdicao.push({
+                                nome: newName,
+                                tipo: "image/jpeg",
+                                conteudo: compressedContent
+                            });
+                        } catch (e) {
+                            console.error("Erro ao comprimir anexo:", e);
+                        }
+                    } else {
+                        try {
+                            const content = await new Promise((resolve, reject) => {
+                                const reader = new FileReader();
+                                reader.onload = (e) => resolve(e.target.result);
+                                reader.onerror = (e) => reject(e);
+                                reader.readAsDataURL(file);
+                            });
+                            listaAnexosEdicao.push({
+                                nome: file.name,
+                                tipo: file.type,
+                                conteudo: content
+                            });
+                        } catch (e) {
+                            console.error("Erro ao ler arquivo:", e);
+                        }
+                    }
+                    
+                    const percent = Math.round(((i + 1) / total) * 100);
+                    barra.style.width = `${percent}%`;
+                }
+                
+                setTimeout(() => {
+                    modalProgresso.hide();
+                    atualizarVisualizacaoAnexosEdicao();
+                }, 500);
+            }
+            input.value = '';
+        }
+
+        function atualizarVisualizacaoAnexosEdicao() {
+            const div = document.getElementById('edit_listaAnexos');
+            div.innerHTML = '';
+            listaAnexosEdicao.forEach((anexo, index) => {
+                const item = document.createElement('div');
+                item.className = 'list-group-item d-flex justify-content-between align-items-center';
+                
+                const infoSpan = document.createElement('span');
+                infoSpan.innerHTML = `<i class="fas fa-paperclip me-2 text-secondary"></i>${anexo.nome}`;
+                
+                const btnDiv = document.createElement('div');
+                
+                // Se tiver ID, é um arquivo existente no servidor -> Botões de Acesso
+                if (anexo.id) {
+                    const btnView = document.createElement('button');
+                    btnView.type = 'button';
+                    btnView.className = 'btn btn-sm btn-outline-secondary me-1';
+                    btnView.title = 'Visualizar';
+                    btnView.innerHTML = '<i class="fas fa-eye"></i>';
+                    btnView.onclick = () => visualizarAnexo(anexo.id, anexo.nome, anexo.tipo);
+                    btnDiv.appendChild(btnView);
+
+                    const btnDown = document.createElement('a');
+                    btnDown.href = `http://localhost:3000/api/anexo/${anexo.id}/download`;
+                    btnDown.download = anexo.nome;
+                    btnDown.className = 'btn btn-sm btn-outline-primary me-1';
+                    btnDown.title = 'Baixar';
+                    btnDown.innerHTML = '<i class="fas fa-download"></i>';
+                    btnDiv.appendChild(btnDown);
+                }
+
+                const btnDel = document.createElement('button');
+                btnDel.type = 'button';
+                btnDel.className = 'btn btn-sm btn-outline-danger';
+                btnDel.title = 'Remover';
+                btnDel.innerHTML = '<i class="fas fa-times"></i>';
+                btnDel.onclick = () => removerAnexoEdicao(index);
+                btnDiv.appendChild(btnDel);
+
+                item.appendChild(infoSpan);
+                item.appendChild(btnDiv);
+                div.appendChild(item);
+            });
+        }
+
+        function removerAnexoEdicao(index) {
+            listaAnexosEdicao.splice(index, 1);
+            atualizarVisualizacaoAnexosEdicao();
+        }
+
+        document.getElementById('formEditarServidor').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const id = document.getElementById('editServidorId').value;
+
+            const titular = {
+                nome: document.getElementById('edit_nomeTitular').value,
+                cpf: document.getElementById('edit_cpfTitular').value,
+                rg: document.getElementById('edit_rgTitular').value,
+                dataEmissaoRg: document.getElementById('edit_dataEmissaoRg').value,
+                orgaoEmissorRg: document.getElementById('edit_orgaoEmissorRg').value,
+                numCtps: document.getElementById('edit_numCtps').value,
+                serieCtps: document.getElementById('edit_serieCtps').value,
+                ufCtps: document.getElementById('edit_ufCtps').value,
+                dataEmissaoCtps: document.getElementById('edit_dataEmissaoCtps').value,
+                numTitulo: document.getElementById('edit_numTitulo').value,
+                zonaTitulo: document.getElementById('edit_zonaTitulo').value,
+                secaoTitulo: document.getElementById('edit_secaoTitulo').value,
+                cidadeUfTitulo: document.getElementById('edit_cidadeUfTitulo').value,
+                numPis: document.getElementById('edit_numPis').value,
+                dataEmissaoPis: document.getElementById('edit_dataEmissaoPis').value,
+                cnh: document.getElementById('edit_cnh').value,
+                registroProfissional: document.getElementById('edit_registroProfissional').value,
+                dataNasc: document.getElementById('edit_dataNascTitular').value,
+                sexo: document.getElementById('edit_sexo').value,
+                raca: document.getElementById('edit_raca').value,
+                estadoCivil: document.getElementById('edit_estadoCivil').value,
+                nacionalidade: document.getElementById('edit_nacionalidade').value,
+                naturalidade: document.getElementById('edit_naturalidade').value,
+                grauInstrucao: document.getElementById('edit_grauInstrucao').value,
+                nomePai: document.getElementById('edit_nomePai').value,
+                nomeMae: document.getElementById('edit_nomeMae').value,
+                email: document.getElementById('edit_email').value,
+                telefone: document.getElementById('edit_telefone').value,
+                celular: document.getElementById('edit_celular').value,
+                cep: document.getElementById('edit_cep').value,
+                endereco: document.getElementById('edit_endereco').value,
+                numero: document.getElementById('edit_numero').value,
+                bairro: document.getElementById('edit_bairro').value,
+                cidade: document.getElementById('edit_cidade').value,
+                uf: document.getElementById('edit_uf').value,
+                matricula: document.getElementById('edit_matricula').value,
+                tipoAdmissao: document.getElementById('edit_tipoAdmissao').value,
+                dataAdmissao: document.getElementById('edit_dataAdmissao').value,
+                numPortaria: document.getElementById('edit_numPortaria').value,
+                tipoCargo: document.getElementById('edit_tipoCargo').value,
+                cargo: document.getElementById('edit_cargo').value,
+                regimeTrabalho: document.getElementById('edit_regimeTrabalho').value,
+                salarioBase: document.getElementById('edit_salarioBase').value,
+                secretaria: document.getElementById('edit_secretaria').value,
+                setor: document.getElementById('edit_setor').value,
+                unidadeTrabalho: document.getElementById('edit_unidadeTrabalho').value,
+                lotacao: document.getElementById('edit_lotacao').value,
+                foto_perfil: document.getElementById('edit_previewFoto').src === PLACEHOLDER_FOTO ? null : document.getElementById('edit_previewFoto').src
+            };
+
+            const temConjuge = document.getElementById('edit_temConjuge').checked;
+            const conjuge = {
+                temConjuge: temConjuge,
+                nome: temConjuge ? document.getElementById('edit_nomeConjuge').value : null,
+                cpf: temConjuge ? document.getElementById('edit_cpfConjuge').value : null,
+                dataNasc: temConjuge ? document.getElementById('edit_dataNascConjuge').value : null
+            };
+
+            const dependentes = [];
+            document.querySelectorAll('#edit_tabelaDependentes tbody tr').forEach(row => {
+                dependentes.push({
+                    nome: row.cells[0].innerText,
+                    cpf: row.cells[1].innerText,
+                    parentesco: row.cells[2].innerText,
+                    dataNasc: row.cells[3].getAttribute('data-raw')
+                });
+            });
+
+            try {
+                const response = await fetch(`http://localhost:3000/api/servidor/${id}`, {
+                    method: 'PUT',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-admin-id': localStorage.getItem('adminId')
+                    },
+                    body: JSON.stringify({ titular, conjuge, dependentes, anexos: listaAnexosEdicao })
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    alert(result.message);
+                    bootstrap.Modal.getInstance(document.getElementById('modalEditarServidor')).hide();
+                    carregarDadosAPI();
+                } else {
+                    alert('Erro ao atualizar: ' + result.error);
+                }
+            } catch (error) {
+                alert('Erro de conexão ao tentar atualizar.');
+            }
+        });
+
+        // Funções de Gestão de Admin (Master)
+        function abrirModalAdmin() {
+            new bootstrap.Modal(document.getElementById('modalNovoAdmin')).show();
+        }
+
+        function mascaraCPF(input) {
+            let v = input.value.replace(/\D/g, "");
+            if (v.length > 11) v = v.slice(0, 11);
+            v = v.replace(/(\d{3})(\d)/, "$1.$2");
+            v = v.replace(/(\d{3})(\d)/, "$1.$2");
+            v = v.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+            input.value = v;
+        }
+
+        function mascaraTelefone(input) {
+            let v = input.value.replace(/\D/g, "");
+            if (v.length > 11) v = v.slice(0, 11);
+            v = v.replace(/^(\d{2})(\d)/g, "($1) $2");
+            v = v.replace(/(\d)(\d{4})$/, "$1-$2");
+            input.value = v;
+        }
+
+        function mascaraMoeda(input, value = null) {
+            let v = value ? value.toString().replace(/\D/g, "") : input.value.replace(/\D/g, "");
+            if (v === "") {
+                input.value = "";
+                return;
+            }
+            v = (v / 100).toFixed(2) + "";
+            v = v.replace(".", ",");
+            v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.");
+            input.value = "R$ " + v;
+        }
+
+        async function abrirLixeira() {
+            new bootstrap.Modal(document.getElementById('modalLixeira')).show();
+            const tbody = document.getElementById('tabelaLixeira');
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center">Carregando...</td></tr>';
+            
+            try {
+                const res = await fetch('http://localhost:3000/api/lixeira');
+                const itens = await res.json();
+                tbody.innerHTML = '';
+                
+                if(itens.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">A lixeira está vazia.</td></tr>';
+                    return;
+                }
+
+                itens.forEach(item => {
+                    const tr = document.createElement('tr');
+                    const dataExclusao = new Date(item.deleted_at).toLocaleString('pt-BR');
+                    tr.innerHTML = `
+                        <td>${item.nome}</td>
+                        <td>${item.cpf}</td>
+                        <td>${item.cargo || '-'}</td>
+                        <td><small>${dataExclusao}</small></td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-success me-1" onclick="restaurarServidor(${item.id})" title="Restaurar"><i class="fas fa-undo"></i></button>
+                            <button class="btn btn-sm btn-danger" onclick="excluirPermanente(${item.id})" title="Excluir Permanentemente"><i class="fas fa-times"></i></button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Erro ao carregar lixeira.</td></tr>';
+            }
+        }
+
+        async function restaurarServidor(id) {
+            if(!confirm('Deseja restaurar este servidor?')) return;
+            await fetch(`http://localhost:3000/api/servidor/${id}/restaurar`, { method: 'PUT', headers: { 'x-admin-id': localStorage.getItem('adminId') } });
+            abrirLixeira(); carregarDadosAPI();
+        }
+
+        async function excluirPermanente(id) {
+            if(!confirm('ATENÇÃO: Isso excluirá o registro PERMANENTEMENTE. Continuar?')) return;
+            await fetch(`http://localhost:3000/api/lixeira/${id}`, { method: 'DELETE', headers: { 'x-admin-id': localStorage.getItem('adminId') } });
+            abrirLixeira();
+        }
+
+        function toggleFiltros() {
+            const painel = document.getElementById('painelFiltros');
+            painel.style.display = painel.style.display === 'none' ? 'flex' : 'none';
+        }
+
+        function limparFiltros() {
+            document.getElementById('filtroCargo').value = '';
+            document.getElementById('filtroSecretaria').value = '';
+            document.getElementById('filtroTipoAdmissao').value = '';
+            document.getElementById('searchInput').value = '';
+            carregarDadosAPI(1);
+        }
+
+        async function fazerBackup() {
+            if (!confirm('Deseja baixar uma cópia de segurança (Backup) completa do banco de dados?')) return;
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/admin/backup');
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `backup_sicasv_${new Date().toISOString().slice(0,10)}.sql`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                } else {
+                    alert('Erro ao gerar backup. Verifique o console do servidor.');
+                }
+            } catch (e) {
+                alert('Erro de conexão ao tentar realizar o backup.');
+            }
+        }
+
+        async function restaurarBackup(input) {
+            if (input.files.length === 0) return;
+            
+            const file = input.files[0];
+            if (!confirm(`⚠️ ATENÇÃO CRÍTICA ⚠️\n\nA restauração irá APAGAR TODOS os dados atuais e substituí-los pelos dados do arquivo:\n"${file.name}"\n\nEssa ação é irreversível. Deseja realmente continuar?`)) {
+                input.value = '';
+                return;
+            }
+
+            // Confirmação Extra de Segurança
+            const confirmacaoExtra = prompt("Para confirmar a restauração, digite 'RESTAURAR' (em maiúsculas) na caixa abaixo:");
+            if (confirmacaoExtra !== 'RESTAURAR') {
+                alert('Operação cancelada. O texto de confirmação não corresponde.');
+                input.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const sql = e.target.result;
+                try {
+                    document.body.style.cursor = 'wait';
+                    
+                    const response = await fetch('http://localhost:3000/api/admin/restore', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sql })
+                    });
+                    
+                    const result = await response.json();
+                    document.body.style.cursor = 'default';
+                    input.value = '';
+
+                    if (response.ok) {
+                        alert(result.message);
+                        carregarDadosAPI();
+                    } else {
+                        alert('Erro na restauração: ' + result.error);
+                    }
+                } catch (error) {
+                    document.body.style.cursor = 'default';
+                    input.value = '';
+                    alert('Erro de conexão ao enviar o arquivo.');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // --- FUNÇÕES DE GESTÃO DE ADMINS (MASTER) ---
+
+        async function carregarAdmins() {
+            try {
+                const response = await fetch('http://localhost:3000/api/admins');
+                const admins = await response.json();
+                const tbody = document.getElementById('listaAdmins');
+                tbody.innerHTML = '';
+
+                admins.forEach(a => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${a.nome || '-'}</td>
+                        <td>${a.cpf || '-'}</td>
+                        <td>${a.telefone || '-'}</td>
+                        <td>${a.email} <span class="badge bg-secondary">${a.role}</span></td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-warning text-white btn-action" onclick="abrirEditarAdmin(${a.id}, '${a.nome || ''}', '${a.cpf || ''}', '${a.telefone || ''}', '${a.email}')" title="Editar"><i class="fas fa-edit"></i></button>
+                            <button class="btn btn-sm btn-danger btn-action" onclick="abrirSenhaAdmin(${a.id})" title="Alterar Senha"><i class="fas fa-key"></i></button>
+                            ${a.role !== 'master' ? `<button class="btn btn-sm btn-dark btn-action" onclick="excluirAdmin(${a.id})" title="Excluir"><i class="fas fa-trash"></i></button>` : ''}
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error('Erro ao carregar admins:', error);
+            }
+        }
+
+        function abrirEditarAdmin(id, nome, cpf, telefone, email) {
+            document.getElementById('editAdminId').value = id;
+            document.getElementById('editAdminNome').value = nome;
+            document.getElementById('editAdminCpf').value = cpf;
+            document.getElementById('editAdminTelefone').value = telefone;
+            document.getElementById('editAdminEmail').value = email;
+            new bootstrap.Modal(document.getElementById('modalEditarAdmin')).show();
+        }
+
+        document.getElementById('formEditarAdmin').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const id = document.getElementById('editAdminId').value;
+            const body = {
+                nome: document.getElementById('editAdminNome').value,
+                cpf: document.getElementById('editAdminCpf').value,
+                telefone: document.getElementById('editAdminTelefone').value,
+                email: document.getElementById('editAdminEmail').value
+            };
+            await fetch(`http://localhost:3000/api/admin/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            bootstrap.Modal.getInstance(document.getElementById('modalEditarAdmin')).hide();
+            carregarAdmins();
+            alert('Administrador atualizado!');
+        });
+
+        function abrirSenhaAdmin(id) {
+            document.getElementById('senhaAdminId').value = id;
+            document.getElementById('novaSenhaAdmin').value = '';
+            new bootstrap.Modal(document.getElementById('modalSenhaAdmin')).show();
+        }
+
+        document.getElementById('formSenhaAdmin').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const id = document.getElementById('senhaAdminId').value;
+            const senha = document.getElementById('novaSenhaAdmin').value;
+            await fetch(`http://localhost:3000/api/admin/${id}/senha`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ senha })
+            });
+            bootstrap.Modal.getInstance(document.getElementById('modalSenhaAdmin')).hide();
+            alert('Senha alterada com sucesso!');
+        });
+
+        async function excluirAdmin(id) {
+            if (!confirm('Tem certeza que deseja excluir este administrador?')) return;
+            const res = await fetch(`http://localhost:3000/api/admin/${id}`, { method: 'DELETE' });
+            if (res.ok) { alert('Administrador excluído.'); carregarAdmins(); }
+            else { alert('Erro ao excluir.'); }
+        }
+
+        document.getElementById('formNovoAdmin').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const nome = document.getElementById('nomeAdmin').value;
+            const cpf = document.getElementById('cpfAdmin').value;
+            const telefone = document.getElementById('telefoneAdmin').value;
+            const email = document.getElementById('emailAdmin').value;
+
+            try {
+                const response = await fetch('http://localhost:3000/api/admin/novo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nome, cpf, telefone, email })
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    alert(result.message);
+                    document.getElementById('nomeAdmin').value = '';
+                    document.getElementById('cpfAdmin').value = '';
+                    document.getElementById('telefoneAdmin').value = '';
+                    document.getElementById('emailAdmin').value = '';
+                    bootstrap.Modal.getInstance(document.getElementById('modalNovoAdmin')).hide();
+                    carregarAdmins();
+                } else {
+                    alert('Erro: ' + result.error);
+                }
+            } catch (error) {
+                alert('Erro de conexão.');
+            }
+        });
+
+        // Inicializa a tabela
+    </script>
+</body>
+</html>
