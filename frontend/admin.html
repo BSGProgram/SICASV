@@ -1539,43 +1539,28 @@
 
         async function exportarPDF() {
             try {
-                const dados = await obterDadosParaExportacao();
-                if (!dados.length) return alert('Sem dados para exportar.');
-
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-
-                doc.text("Relatório de Servidores - SICASV", 14, 15);
-                doc.setFontSize(10);
-                doc.text(`Gerado em: ${new Date().toLocaleString()}`, 14, 22);
-
-                let tableColumn, tableRows;
-
-                if (selectedServidores.size > 0) {
-                    tableColumn = ["Matrícula", "Nome", "CPF", "Cargo", "Lotação", "Admissão", "Telefone"];
-                    tableRows = dados.map(s => [
-                        s.matricula, s.nome, s.cpf, s.cargo, s.lotacao, 
-                        s.dataAdmissao ? s.dataAdmissao.split('T')[0].split('-').reverse().join('/') : '-',
-                        s.telefone || s.celular || '-'
-                    ]);
+                document.body.style.cursor = 'wait';
+                
+                const response = await fetch('http://localhost:3000/api/admin/exportar/pdf');
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'relatorio_servidores.pdf';
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
                 } else {
-                    tableColumn = ["Matrícula", "Nome", "CPF", "Cargo", "Lotação", "Admissão"];
-                    tableRows = dados.map(s => [
-                        s.matricula, s.nome, s.cpf, s.cargo, s.lotacao, 
-                        s.dataAdmissao ? s.dataAdmissao.split('T')[0].split('-').reverse().join('/') : '-'
-                    ]);
+                    alert('Erro ao gerar PDF no servidor.');
                 }
-
-                doc.autoTable({
-                    head: [tableColumn],
-                    body: tableRows,
-                    startY: 30,
-                });
-
-                doc.save("servidores_sicasv.pdf");
             } catch (e) {
                 console.error(e);
-                alert('Erro ao gerar PDF.');
+                alert('Erro de conexão ao baixar PDF.');
+            } finally {
+                document.body.style.cursor = 'default';
             }
         }
 
