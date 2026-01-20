@@ -7,6 +7,7 @@ const path = require('path');
 const nodemailer = require('nodemailer');
 const fs = require('fs');
 const archiver = require('archiver');
+const PDFDocument = require('pdfkit');
 require('dotenv').config();
 
 const app = express();
@@ -291,35 +292,46 @@ function iniciarServidor() {
             const status = req.query.status || 'finalizado'; // Padrão: finalizado
             const sortBy = req.query.sortBy || 'nome';
             const order = req.query.order || 'ASC';
+            const ids = req.query.ids || '';
+            const full = req.query.full === 'true';
             const offset = (page - 1) * limit;
 
-            let query = 'SELECT id, matricula, nome, cpf, cargo, lotacao, status FROM titulares';
+            let query = full ? 'SELECT * FROM titulares' : 'SELECT id, matricula, nome, cpf, cargo, lotacao, status FROM titulares';
             let countQuery = 'SELECT COUNT(*) as total FROM titulares';
             let params = [];
             let conditions = [];
 
-            if (search) {
-                conditions.push('(nome LIKE ? OR cpf LIKE ? OR matricula LIKE ?)');
-                const searchTerm = `%${search}%`;
-                params.push(searchTerm, searchTerm, searchTerm);
-            }
+            if (ids) {
+                // Se IDs forem fornecidos, ignora filtros de pesquisa e busca apenas os selecionados
+                const idList = ids.split(',').map(n => parseInt(n)).filter(n => !isNaN(n));
+                if (idList.length > 0) {
+                    conditions.push(`id IN (${idList.join(',')})`);
+                }
+            } else {
+                // Aplica filtros normais apenas se não houver seleção de IDs
+                if (search) {
+                    conditions.push('(nome LIKE ? OR cpf LIKE ? OR matricula LIKE ?)');
+                    const searchTerm = `%${search}%`;
+                    params.push(searchTerm, searchTerm, searchTerm);
+                }
 
-            if (cargo) {
-                conditions.push('cargo LIKE ?');
-                params.push(`%${cargo}%`);
-            }
-            if (secretaria) {
-                conditions.push('secretaria LIKE ?');
-                params.push(`%${secretaria}%`);
-            }
-            if (tipoAdmissao) {
-                conditions.push('tipoAdmissao = ?');
-                params.push(tipoAdmissao);
-            }
-            
-            if (status) {
-                conditions.push('status = ?');
-                params.push(status);
+                if (cargo) {
+                    conditions.push('cargo LIKE ?');
+                    params.push(`%${cargo}%`);
+                }
+                if (secretaria) {
+                    conditions.push('secretaria LIKE ?');
+                    params.push(`%${secretaria}%`);
+                }
+                if (tipoAdmissao) {
+                    conditions.push('tipoAdmissao = ?');
+                    params.push(tipoAdmissao);
+                }
+                
+                if (status) {
+                    conditions.push('status = ?');
+                    params.push(status);
+                }
             }
 
             // Filtra apenas os não excluídos (Soft Delete)
@@ -1049,6 +1061,93 @@ function iniciarServidor() {
         });
     });
 
+    // Rota para gerar relatório PDF dos servidores cadastrados
+    app.get('/api/admin/exportar/pdf', async (req, res) => {
+        try {
+            // Busca todos os servidores ativos ordenados por nome
+            const [rows] = await db.promise().query(
+                'SELECT matricula, nome, cpf, cargo, lotacao, dataAdmissao FROM titulares WHERE deleted_at IS NULL ORDER BY nome ASC'
+            );
+
+            const doc = new PDFDocument({ margin: 30, size: 'A4' });
+
+            // Configura headers para download
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', 'attachment; filename=relatorio_servidores.pdf');
+
+            doc.pipe(res);
+
+            // Cabeçalho do PDF
+            doc.fontSize(18).text('Relatório de Servidores - SICASV', { align: 'center' });
+            doc.fontSize(10).text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, { align: 'center' });
+            doc.moveDown();
+
+            // Configuração da Tabela (Layout Manual)
+            const headers = ['Matrícula', 'Nome', 'CPF', 'Cargo', 'Lotação', 'Admissão'];
+            const colWidths = [60, 140, 90, 100, 90, 70];
+            let startX = 30;
+            let startY = doc.y;
+            
+            // Desenhar Cabeçalho da Tabela
+            doc.fontSize(10).font('Helvetica-Bold');
+            let currentX = startX;
+            headers.forEach((header, i) => {
+                doc.text(header, currentX, startY, { width: colWidths[i], align: 'left' });
+                currentX += colWidths[i];
+            });
+
+            // Linha separadora
+            startY += 15;
+            doc.moveTo(startX, startY).lineTo(startX + 550, startY).stroke();
+            startY += 10;
+
+            // Dados
+            doc.font('Helvetica').fontSize(9);
+            
+            for (const row of rows) {
+                // Verifica quebra de página
+                if (startY > 750) {
+                    doc.addPage();
+                    startY = 30;
+                    // Repete cabeçalho na nova página
+                    currentX = startX;
+                    doc.fontSize(10).font('Helvetica-Bold');
+                    headers.forEach((header, i) => {
+                        doc.text(header, currentX, startY, { width: colWidths[i], align: 'left' });
+                        currentX += colWidths[i];
+                    });
+                    startY += 15;
+                    doc.moveTo(startX, startY).lineTo(startX + 550, startY).stroke();
+                    startY += 10;
+                    doc.font('Helvetica').fontSize(9);
+                }
+
+                currentX = startX;
+                const admissao = row.dataAdmissao ? row.dataAdmissao.toISOString().split('T')[0].split('-').reverse().join('/') : '-';
+
+                doc.text(row.matricula || '', currentX, startY, { width: colWidths[0] });
+                currentX += colWidths[0];
+                doc.text(row.nome || '', currentX, startY, { width: colWidths[1], ellipsis: true });
+                currentX += colWidths[1];
+                doc.text(row.cpf || '', currentX, startY, { width: colWidths[2] });
+                currentX += colWidths[2];
+                doc.text(row.cargo || '', currentX, startY, { width: colWidths[3], ellipsis: true });
+                currentX += colWidths[3];
+                doc.text(row.lotacao || '', currentX, startY, { width: colWidths[4], ellipsis: true });
+                currentX += colWidths[4];
+                doc.text(admissao, currentX, startY, { width: colWidths[5] });
+                
+                startY += 15;
+            }
+
+            doc.end();
+
+        } catch (error) {
+            console.error('Erro ao gerar PDF:', error);
+            if (!res.headersSent) res.status(500).send('Erro ao gerar PDF');
+        }
+    });
+
     // Rota de Backup do Banco de Dados (Dump SQL)
     app.get('/api/admin/backup', async (req, res) => {
         try {
@@ -1140,6 +1239,63 @@ function iniciarServidor() {
             console.error('Erro ao enviar relatório:', error);
             logEmail('FALHA', email, 'Envio de Relatório PDF', error.message);
             res.status(500).json({ error: 'Erro ao enviar email: ' + error.message });
+        }
+    });
+
+    // Rota para envio de email em massa para servidores selecionados
+    app.post('/api/admin/email-massa', async (req, res) => {
+        const { ids, assunto, mensagem } = req.body;
+
+        if (!ids || !Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ error: 'Nenhum servidor selecionado.' });
+        }
+        if (!assunto || !mensagem) {
+            return res.status(400).json({ error: 'Assunto e mensagem são obrigatórios.' });
+        }
+
+        try {
+            // Busca emails dos IDs selecionados (apenas os que têm email válido)
+            const [rows] = await db.promise().query('SELECT email, nome FROM titulares WHERE id IN (?) AND email IS NOT NULL AND email != ""', [ids]);
+            
+            if (rows.length === 0) {
+                return res.status(404).json({ error: 'Nenhum dos servidores selecionados possui email cadastrado.' });
+            }
+
+            let enviados = 0;
+            let erros = 0;
+
+            // Envia emails individualmente para personalização e melhor entregabilidade
+            const promises = rows.map(destinatario => {
+                return transporter.sendMail({
+                    from: `"SICASV Comunicados" <${process.env.EMAIL_USER}>`,
+                    to: destinatario.email,
+                    subject: assunto,
+                    html: `
+                        <p>Olá <strong>${destinatario.nome}</strong>,</p>
+                        <div style="white-space: pre-wrap; font-family: sans-serif;">${mensagem}</div>
+                        <hr>
+                        <p><small>Este é um comunicado oficial enviado através do sistema SICASV.</small></p>
+                    `
+                }).then(() => {
+                    enviados++;
+                    logEmail('SUCESSO', destinatario.email, 'Email em Massa: ' + assunto);
+                }).catch(err => {
+                    erros++;
+                    console.error(`Erro ao enviar para ${destinatario.email}:`, err);
+                    logEmail('FALHA', destinatario.email, 'Email em Massa', err.message);
+                });
+            });
+
+            await Promise.all(promises);
+
+            res.json({ 
+                message: `Processo finalizado. Enviados: ${enviados}, Falhas: ${erros}.`,
+                details: { enviados, erros }
+            });
+
+        } catch (error) {
+            console.error('Erro no envio em massa:', error);
+            res.status(500).json({ error: 'Erro interno ao processar envio.' });
         }
     });
 

@@ -154,6 +154,7 @@
                         </div>
                         <button class="btn btn-outline-secondary" onclick="toggleCompactMode()" id="btnCompact" title="Modo Compacto"><i class="fas fa-compress"></i></button>
                         <button class="btn btn-outline-primary" onclick="toggleFiltros()" title="Filtros Avançados"><i class="fas fa-filter"></i></button>
+                        <button class="btn btn-outline-dark" onclick="abrirModalEmailMassa()" title="Enviar Email para Selecionados"><i class="fas fa-envelope"></i></button>
                         <button class="btn btn-secondary" onclick="imprimirLista()"><i class="fas fa-print"></i> Imprimir</button>
                         
                         <!-- Menu Dropdown de Exportação -->
@@ -207,6 +208,7 @@
                     <table class="table table-hover table-striped mb-0 align-middle" id="tabelaServidores">
                         <thead class="table-light">
                             <tr>
+                                <th style="width: 40px;" class="text-center"><input type="checkbox" class="form-check-input" id="selectAll" onclick="toggleSelectAll(this)"></th>
                                 <th style="width: 60px;">Foto</th>
                                 <th class="text-center" style="width: 50px;" title="Status">St.</th>
                                 <th class="sortable" onclick="ordenar('matricula')">Matrícula <i class="fas fa-sort text-muted small ms-1" id="icon-matricula"></i></th>
@@ -649,6 +651,32 @@
         </div>
     </div>
 
+    <!-- Modal Email em Massa -->
+    <div class="modal fade" id="modalEmailMassa" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title"><i class="fas fa-envelope-open-text me-2"></i>Enviar Email em Massa</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-3">Enviando para <strong id="qtdDestinatarios" class="text-primary">0</strong> servidores selecionados.</p>
+                    <form id="formEmailMassa">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Assunto</label>
+                            <input type="text" class="form-control" id="emailAssunto" required placeholder="Ex: Comunicado Importante">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Mensagem</label>
+                            <textarea class="form-control" id="emailMensagem" rows="6" required placeholder="Digite sua mensagem aqui..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100"><i class="fas fa-paper-plane me-2"></i>Enviar Emails</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Novo Administrador (Apenas Master) -->
     <div class="modal fade" id="modalNovoAdmin" tabindex="-1">
         <div class="modal-dialog">
@@ -851,6 +879,7 @@
         let currentStatus = 'finalizado';
         let currentSort = 'nome';
         let currentOrder = 'ASC';
+        let selectedServidores = new Set();
 
         // Verificação de Segurança
         const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
@@ -994,6 +1023,7 @@
             
             if (dados.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">Nenhum registro encontrado.</td></tr>';
+                document.getElementById('selectAll').disabled = true;
             }
 
             dados.forEach(s => {
@@ -1002,7 +1032,9 @@
                     : '<span class="badge bg-success" title="Finalizado"><i class="fas fa-check"></i></span>';
 
                 const tr = document.createElement('tr');
+                const isSelected = selectedServidores.has(s.id) ? 'checked' : '';
                 tr.innerHTML = `
+                    <td class="text-center"><input type="checkbox" class="form-check-input row-checkbox" value="${s.id}" ${isSelected} onclick="toggleRowSelection(${s.id})"></td>
                     <td>
                         <img src="http://localhost:3000/api/servidor/${s.id}/foto" 
                              class="rounded-circle border shadow-sm" 
@@ -1026,6 +1058,27 @@
             
             const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
             document.getElementById('totalRegistros').innerText = `Página ${currentPage} de ${totalPages} (Total: ${totalItems} registros)`;
+            
+            // Atualiza estado do checkbox geral
+            const allCheckboxes = document.querySelectorAll('.row-checkbox');
+            const allChecked = allCheckboxes.length > 0 && Array.from(allCheckboxes).every(cb => cb.checked);
+            document.getElementById('selectAll').checked = allChecked;
+            document.getElementById('selectAll').disabled = allCheckboxes.length === 0;
+        }
+
+        function toggleSelectAll(source) {
+            const checkboxes = document.querySelectorAll('.row-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = source.checked;
+                const id = parseInt(cb.value);
+                if (source.checked) selectedServidores.add(id);
+                else selectedServidores.delete(id);
+            });
+        }
+
+        function toggleRowSelection(id) {
+            if (selectedServidores.has(id)) selectedServidores.delete(id);
+            else selectedServidores.add(id);
         }
 
         function filtrarServidores() {
@@ -1389,14 +1442,23 @@
             const secretaria = document.getElementById('filtroSecretaria').value;
             const tipoAdmissao = document.getElementById('filtroTipoAdmissao').value;
 
-            const params = new URLSearchParams({
-                limit: -1, // Pega tudo
-                search: search,
-                cargo: cargo,
-                secretaria: secretaria,
-                tipoAdmissao: tipoAdmissao,
+            let paramsObj = {
+                limit: -1,
                 status: currentStatus
-            });
+            };
+
+            // Se houver seleção, exporta APENAS os selecionados e com TODOS os dados (full=true)
+            if (selectedServidores.size > 0) {
+                paramsObj.ids = Array.from(selectedServidores).join(',');
+                paramsObj.full = 'true';
+            } else {
+                paramsObj.search = search;
+                paramsObj.cargo = cargo;
+                paramsObj.secretaria = secretaria;
+                paramsObj.tipoAdmissao = tipoAdmissao;
+            }
+
+            const params = new URLSearchParams(paramsObj);
 
             const response = await fetch(`http://localhost:3000/api/servidores?${params.toString()}`);
             const result = await response.json();
@@ -1421,15 +1483,24 @@
                 doc.setFontSize(10);
                 doc.text(`Gerado em: ${new Date().toLocaleString()}`, 14, 22);
 
-                const tableColumn = ["Matrícula", "Nome", "CPF", "Cargo", "Lotação", "Admissão"];
-                const tableRows = dados.map(s => [
-                    s.matricula,
-                    s.nome,
-                    s.cpf,
-                    s.cargo,
-                    s.lotacao,
-                    s.dataAdmissao ? s.dataAdmissao.split('-').reverse().join('/') : '-'
-                ]);
+                // Define colunas dinamicamente se for exportação completa, ou padrão se for resumo
+                let tableColumn, tableRows;
+
+                if (selectedServidores.size > 0) {
+                    // Exportação Completa (Simplificada para PDF para caber na folha)
+                    tableColumn = ["Matrícula", "Nome", "CPF", "Cargo", "Lotação", "Admissão", "Telefone"];
+                    tableRows = dados.map(s => [
+                        s.matricula, s.nome, s.cpf, s.cargo, s.lotacao, 
+                        s.dataAdmissao ? s.dataAdmissao.split('T')[0].split('-').reverse().join('/') : '-',
+                        s.telefone || s.celular || '-'
+                    ]);
+                } else {
+                    tableColumn = ["Matrícula", "Nome", "CPF", "Cargo", "Lotação", "Admissão"];
+                    tableRows = dados.map(s => [
+                        s.matricula, s.nome, s.cpf, s.cargo, s.lotacao, 
+                        s.dataAdmissao ? s.dataAdmissao.split('T')[0].split('-').reverse().join('/') : '-'
+                    ]);
+                }
 
                 doc.autoTable({
                     head: [tableColumn],
@@ -1478,15 +1549,22 @@
                 doc.setFontSize(10);
                 doc.text(`Gerado em: ${new Date().toLocaleString()}`, 14, 22);
 
-                const tableColumn = ["Matrícula", "Nome", "CPF", "Cargo", "Lotação", "Admissão"];
-                const tableRows = dados.map(s => [
-                    s.matricula,
-                    s.nome,
-                    s.cpf,
-                    s.cargo,
-                    s.lotacao,
-                    s.dataAdmissao ? s.dataAdmissao.split('-').reverse().join('/') : '-'
-                ]);
+                let tableColumn, tableRows;
+
+                if (selectedServidores.size > 0) {
+                    tableColumn = ["Matrícula", "Nome", "CPF", "Cargo", "Lotação", "Admissão", "Telefone"];
+                    tableRows = dados.map(s => [
+                        s.matricula, s.nome, s.cpf, s.cargo, s.lotacao, 
+                        s.dataAdmissao ? s.dataAdmissao.split('T')[0].split('-').reverse().join('/') : '-',
+                        s.telefone || s.celular || '-'
+                    ]);
+                } else {
+                    tableColumn = ["Matrícula", "Nome", "CPF", "Cargo", "Lotação", "Admissão"];
+                    tableRows = dados.map(s => [
+                        s.matricula, s.nome, s.cpf, s.cargo, s.lotacao, 
+                        s.dataAdmissao ? s.dataAdmissao.split('T')[0].split('-').reverse().join('/') : '-'
+                    ]);
+                }
 
                 doc.autoTable({
                     head: [tableColumn],
@@ -1506,9 +1584,24 @@
                 const dados = await obterDadosParaExportacao();
                 if (!dados.length) return alert('Sem dados para exportar.');
 
-                let html = '<meta charset="utf-8"><table border="1"><thead><tr><th>Matrícula</th><th>Nome</th><th>CPF</th><th>Cargo</th><th>Lotação</th><th>Admissão</th></tr></thead><tbody>';
+                // Gera colunas dinamicamente baseado no primeiro registro
+                const colunas = Object.keys(dados[0]).filter(key => key !== 'foto_perfil' && key !== 'deleted_at');
+                
+                let html = '<meta charset="utf-8"><table border="1"><thead><tr>';
+                
+                // Cabeçalho
+                colunas.forEach(col => {
+                    html += `<th>${col.toUpperCase()}</th>`;
+                });
+                html += '</tr></thead><tbody>';
+
+                // Linhas
                 dados.forEach(s => {
-                    html += `<tr><td>${s.matricula}</td><td>${s.nome}</td><td>${s.cpf}</td><td>${s.cargo}</td><td>${s.lotacao}</td><td>${s.dataAdmissao || ''}</td></tr>`;
+                    html += '<tr>';
+                    colunas.forEach(col => {
+                        html += `<td>${s[col] !== null && s[col] !== undefined ? s[col] : ''}</td>`;
+                    });
+                    html += '</tr>';
                 });
                 html += '</tbody></table>';
 
@@ -1527,9 +1620,21 @@
                 const dados = await obterDadosParaExportacao();
                 if (!dados.length) return alert('Sem dados para exportar.');
 
-                let html = '<meta charset="utf-8"><html><body><h2>Relatório de Servidores</h2><table border="1" style="width:100%; border-collapse: collapse;"><thead><tr style="background-color:#f2f2f2;"><th>Matrícula</th><th>Nome</th><th>CPF</th><th>Cargo</th><th>Lotação</th></tr></thead><tbody>';
+                const colunas = Object.keys(dados[0]).filter(key => key !== 'foto_perfil' && key !== 'deleted_at');
+
+                let html = '<meta charset="utf-8"><html><body><h2>Relatório de Servidores</h2><table border="1" style="width:100%; border-collapse: collapse;"><thead><tr style="background-color:#f2f2f2;">';
+                
+                colunas.forEach(col => {
+                    html += `<th>${col.toUpperCase()}</th>`;
+                });
+                html += '</tr></thead><tbody>';
+
                 dados.forEach(s => {
-                    html += `<tr><td>${s.matricula}</td><td>${s.nome}</td><td>${s.cpf}</td><td>${s.cargo}</td><td>${s.lotacao}</td></tr>`;
+                    html += '<tr>';
+                    colunas.forEach(col => {
+                        html += `<td>${s[col] !== null && s[col] !== undefined ? s[col] : ''}</td>`;
+                    });
+                    html += '</tr>';
                 });
                 html += '</tbody></table></body></html>';
 
@@ -1548,9 +1653,14 @@
                 const dados = await obterDadosParaExportacao();
                 if (!dados.length) return alert('Sem dados para exportar.');
 
-                let txt = "MATRÍCULA | NOME | CPF | CARGO | LOTAÇÃO\n" + "-".repeat(80) + "\n";
+                const colunas = Object.keys(dados[0]).filter(key => key !== 'foto_perfil' && key !== 'deleted_at');
+                let txt = colunas.join(" | ").toUpperCase() + "\n" + "-".repeat(100) + "\n";
+
                 dados.forEach(s => {
-                    txt += `${s.matricula.padEnd(10)} | ${s.nome.padEnd(30)} | ${s.cpf.padEnd(14)} | ${s.cargo.padEnd(20)} | ${s.lotacao}\n`;
+                    const linha = colunas.map(col => {
+                        return s[col] !== null && s[col] !== undefined ? String(s[col]) : '';
+                    }).join(" | ");
+                    txt += linha + "\n";
                 });
 
                 const blob = new Blob([txt], { type: 'text/plain' });
@@ -1568,9 +1678,16 @@
                 const dadosExport = await obterDadosParaExportacao();
                 if (!dadosExport.length) return alert('Sem dados para exportar.');
 
-                let csvContent = "data:text/csv;charset=utf-8,Matrícula,Nome,CPF,Cargo,Lotação\n";
+                const colunas = Object.keys(dadosExport[0]).filter(key => key !== 'foto_perfil' && key !== 'deleted_at');
+                let csvContent = "data:text/csv;charset=utf-8," + colunas.join(",") + "\n";
+
                 dadosExport.forEach(s => {
-                    csvContent += `${s.matricula},"${s.nome}",${s.cpf},"${s.cargo}","${s.lotacao}"\n`;
+                    const linha = colunas.map(col => {
+                        let val = s[col] !== null && s[col] !== undefined ? String(s[col]) : '';
+                        // Escapa aspas duplas
+                        return `"${val.replace(/"/g, '""')}"`;
+                    }).join(",");
+                    csvContent += linha + "\n";
                 });
                 const link = document.createElement("a");
                 link.setAttribute("href", encodeURI(csvContent));
@@ -2137,6 +2254,55 @@
                 btn.classList.replace('btn-secondary', 'btn-outline-secondary');
             }
         }
+
+        function abrirModalEmailMassa() {
+            if (selectedServidores.size === 0) {
+                alert('Selecione pelo menos um servidor na tabela para enviar email.');
+                return;
+            }
+            document.getElementById('qtdDestinatarios').innerText = selectedServidores.size;
+            document.getElementById('emailAssunto').value = '';
+            document.getElementById('emailMensagem').value = '';
+            new bootstrap.Modal(document.getElementById('modalEmailMassa')).show();
+        }
+
+        document.getElementById('formEmailMassa').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const btn = this.querySelector('button[type="submit"]');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Enviando...';
+
+            const assunto = document.getElementById('emailAssunto').value;
+            const mensagem = document.getElementById('emailMensagem').value;
+            const ids = Array.from(selectedServidores);
+
+            try {
+                const response = await fetch('http://localhost:3000/api/admin/email-massa', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-admin-id': adminId 
+                    },
+                    body: JSON.stringify({ ids, assunto, mensagem })
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert(result.message);
+                    bootstrap.Modal.getInstance(document.getElementById('modalEmailMassa')).hide();
+                } else {
+                    alert('Erro: ' + result.error);
+                }
+            } catch (error) {
+                alert('Erro de conexão ao enviar emails.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        });
 
         async function fazerBackup() {
             if (!confirm('Deseja baixar uma cópia de segurança (Backup) completa do banco de dados?')) return;
