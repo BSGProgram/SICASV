@@ -1540,8 +1540,26 @@
         async function exportarPDF() {
             try {
                 document.body.style.cursor = 'wait';
+
+                const search = document.getElementById('searchInput').value;
+                const cargo = document.getElementById('filtroCargo').value;
+                const secretaria = document.getElementById('filtroSecretaria').value;
+                const tipoAdmissao = document.getElementById('filtroTipoAdmissao').value;
+
+                let paramsObj = { status: currentStatus };
+
+                if (selectedServidores.size > 0) {
+                    paramsObj.ids = Array.from(selectedServidores).join(',');
+                } else {
+                    if (search) paramsObj.search = search;
+                    if (cargo) paramsObj.cargo = cargo;
+                    if (secretaria) paramsObj.secretaria = secretaria;
+                    if (tipoAdmissao) paramsObj.tipoAdmissao = tipoAdmissao;
+                }
+
+                const params = new URLSearchParams(paramsObj);
                 
-                const response = await fetch('http://localhost:3000/api/admin/exportar/pdf');
+                const response = await fetch(`http://localhost:3000/api/admin/exportar/pdf?${params.toString()}`);
                 
                 if (response.ok) {
                     const blob = await response.blob();

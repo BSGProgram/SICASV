@@ -31,7 +31,8 @@ let db; // Conexão global
 
 // Configuração do Nodemailer (Envio de Emails Reais)
 // Lógica automática para definir Host/Porta baseada no email, se não estiver no .env
-const emailUser = process.env.EMAIL_USER || '';
+const emailUser = process.env.EMAIL_USER || 'sicasvent@gmail.com';
+const emailPass = process.env.EMAIL_PASS || 'khtp twhg bevt abxv';
 let emailHost = process.env.EMAIL_HOST;
 let emailPort = process.env.EMAIL_PORT;
 let emailSecure = false;
@@ -39,7 +40,7 @@ let emailSecure = false;
 if (!emailHost && emailUser) {
     const domain = emailUser.split('@')[1]?.toLowerCase();
     if (domain) {
-        if (domain.includes('hotmail') || domain.includes('outlook') || domain.includes('live')) {
+        if (domain.includes('hotmail') || domain.includes('outlook') || domain.includes('live') || domain.includes('msn')) {
             emailHost = 'smtp.office365.com';
             emailPort = 587;
             emailSecure = false; // STARTTLS
@@ -47,6 +48,14 @@ if (!emailHost && emailUser) {
             emailHost = 'smtp.mail.yahoo.com';
             emailPort = 465;
             emailSecure = true; // SSL
+        } else if (domain.includes('icloud') || domain.includes('me.com') || domain.includes('mac.com')) {
+            emailHost = 'smtp.mail.me.com';
+            emailPort = 587;
+            emailSecure = false;
+        } else if (domain.includes('aol')) {
+            emailHost = 'smtp.aol.com';
+            emailPort = 465;
+            emailSecure = true;
         }
     }
 }
@@ -57,11 +66,11 @@ const transporter = nodemailer.createTransport({
     secure: emailSecure, // true para porta 465, false para outras (587)
     auth: {
         user: emailUser,
-        pass: process.env.EMAIL_PASS  // Sua senha de app (não a senha normal)
+        pass: emailPass
     }
 });
 
-if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+if (!emailUser || !emailPass) {
     console.warn("\n⚠️  AVISO: Credenciais de email (EMAIL_USER/EMAIL_PASS) não encontradas no arquivo .env.\n   O sistema de recuperação de senha não enviará emails reais.\n");
 }
 
@@ -72,6 +81,22 @@ function logEmail(status, to, subject, error = null) {
     fs.appendFile(path.join(__dirname, 'email_logs.txt'), msg, (err) => {
         if (err) console.error('Erro ao gravar log de email:', err);
     });
+}
+
+function validarCPF(cpf) {
+    cpf = cpf.replace(/[^\d]+/g, '');
+    if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
+    let soma = 0, resto;
+    for (let i = 1; i <= 9; i++) soma += parseInt(cpf.substring(i - 1, i)) * (11 - i);
+    resto = (soma * 10) % 11;
+    if ((resto === 10) || (resto === 11)) resto = 0;
+    if (resto !== parseInt(cpf.substring(9, 10))) return false;
+    soma = 0;
+    for (let i = 1; i <= 10; i++) soma += parseInt(cpf.substring(i - 1, i)) * (12 - i);
+    resto = (soma * 10) % 11;
+    if ((resto === 10) || (resto === 11)) resto = 0;
+    if (resto !== parseInt(cpf.substring(10, 11))) return false;
+    return true;
 }
 
 function inicializarSistema() {
@@ -281,6 +306,25 @@ function registrarAuditoria(adminId, acao, alvoId, detalhes) {
 
 function iniciarServidor() {
     // Endpoints
+
+    // Rota de teste de email (/api/test-email?email=destino@exemplo.com)
+    app.get('/api/test-email', async (req, res) => {
+        const emailDestino = req.query.email || emailUser; // Usa o próprio remetente se não informado
+
+        try {
+            await transporter.sendMail({
+                from: `"SICASV Teste" <${emailUser}>`,
+                to: emailDestino,
+                subject: 'Teste de Configuração de Email - SICASV',
+                html: `<h3>Teste de Envio</h3><p>O sistema de emails está funcionando corretamente!</p><p><strong>Data:</strong> ${new Date().toLocaleString()}</p>`
+            });
+            res.json({ message: `Email de teste enviado com sucesso para ${emailDestino}` });
+        } catch (error) {
+            console.error('Erro no teste de email:', error);
+            res.status(500).json({ error: 'Falha no envio: ' + error.message });
+        }
+    });
+
     app.get('/api/servidores', async (req, res) => {
         try {
             const page = parseInt(req.query.page) || 1;
@@ -538,6 +582,10 @@ function iniciarServidor() {
             return res.status(400).json({ error: 'CPF deve conter 11 dígitos.' });
         }
 
+        if (!validarCPF(cpf)) {
+            return res.status(400).json({ error: 'CPF inválido (dígitos verificadores incorretos).' });
+        }
+
         // Formata para o padrão do banco (000.000.000-00)
         const cpfFormatado = cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
 
@@ -624,6 +672,10 @@ function iniciarServidor() {
 
         if (!titular || !titular.cpf || !titular.nome) {
             return res.status(400).json({ error: 'Dados inválidos. Nome e CPF são obrigatórios para salvar.' });
+        }
+
+        if (!validarCPF(titular.cpf)) {
+            return res.status(400).json({ error: 'O CPF informado é inválido (dígitos verificadores incorretos).' });
         }
 
         // Verifica se o CPF já existe na base de dados para evitar duplicidade
@@ -751,7 +803,7 @@ function iniciarServidor() {
 
                 try {
                     await transporter.sendMail({
-                        from: `"SICASV Segurança" <${process.env.EMAIL_USER}>`,
+                        from: `"SICASV Segurança" <${emailUser}>`,
                         to: email,
                         subject: 'Redefinição de Senha - SICASV',
                         html: `
@@ -797,7 +849,7 @@ function iniciarServidor() {
             // Envio de Email Real
             try {
                 await transporter.sendMail({
-                    from: `"SICASV Admin" <${process.env.EMAIL_USER}>`,
+                    from: `"SICASV Admin" <${emailUser}>`,
                     to: email,
                     subject: 'Bem-vindo ao SICASV - Credenciais de Acesso',
                     html: `
@@ -831,7 +883,7 @@ function iniciarServidor() {
             
             try {
                 await transporter.sendMail({
-                    from: `"SICASV Segurança" <${process.env.EMAIL_USER}>`,
+                    from: `"SICASV Segurança" <${emailUser}>`,
                     to: email,
                     subject: 'SICASV - Recuperação de Senha',
                     html: `
@@ -869,6 +921,10 @@ function iniciarServidor() {
 
         if (!titular) {
             return res.status(400).json({ error: 'Dados do titular não fornecidos.' });
+        }
+
+        if (titular.cpf && !validarCPF(titular.cpf)) {
+            return res.status(400).json({ error: 'O CPF informado é inválido (dígitos verificadores incorretos).' });
         }
 
         // Verifica se o CPF já existe em outro cadastro (exceto o atual)
@@ -1064,10 +1120,55 @@ function iniciarServidor() {
     // Rota para gerar relatório PDF dos servidores cadastrados
     app.get('/api/admin/exportar/pdf', async (req, res) => {
         try {
-            // Busca todos os servidores ativos ordenados por nome
-            const [rows] = await db.promise().query(
-                'SELECT matricula, nome, cpf, cargo, lotacao, dataAdmissao FROM titulares WHERE deleted_at IS NULL ORDER BY nome ASC'
-            );
+            const search = req.query.search || '';
+            const cargo = req.query.cargo || '';
+            const secretaria = req.query.secretaria || '';
+            const tipoAdmissao = req.query.tipoAdmissao || '';
+            const status = req.query.status || 'finalizado';
+            const ids = req.query.ids || '';
+
+            let query = 'SELECT matricula, nome, cpf, cargo, lotacao, dataAdmissao FROM titulares';
+            let params = [];
+            let conditions = [];
+
+            if (ids) {
+                const idList = ids.split(',').map(n => parseInt(n)).filter(n => !isNaN(n));
+                if (idList.length > 0) {
+                    conditions.push(`id IN (${idList.join(',')})`);
+                }
+            } else {
+                if (search) {
+                    conditions.push('(nome LIKE ? OR cpf LIKE ? OR matricula LIKE ?)');
+                    const searchTerm = `%${search}%`;
+                    params.push(searchTerm, searchTerm, searchTerm);
+                }
+                if (cargo) {
+                    conditions.push('cargo LIKE ?');
+                    params.push(`%${cargo}%`);
+                }
+                if (secretaria) {
+                    conditions.push('secretaria LIKE ?');
+                    params.push(`%${secretaria}%`);
+                }
+                if (tipoAdmissao) {
+                    conditions.push('tipoAdmissao = ?');
+                    params.push(tipoAdmissao);
+                }
+                if (status) {
+                    conditions.push('status = ?');
+                    params.push(status);
+                }
+            }
+
+            conditions.push('deleted_at IS NULL');
+
+            if (conditions.length > 0) {
+                query += ' WHERE ' + conditions.join(' AND ');
+            }
+
+            query += ' ORDER BY nome ASC';
+
+            const [rows] = await db.promise().query(query, params);
 
             const doc = new PDFDocument({ margin: 30, size: 'A4' });
 
@@ -1216,7 +1317,7 @@ function iniciarServidor() {
 
         try {
             await transporter.sendMail({
-                from: `"SICASV Sistema" <${process.env.EMAIL_USER}>`,
+                from: `"SICASV Sistema" <${emailUser}>`,
                 to: email,
                 subject: `Relatório SICASV - ${nomeRelatorio || 'Exportação'}`,
                 html: `
@@ -1267,7 +1368,7 @@ function iniciarServidor() {
             // Envia emails individualmente para personalização e melhor entregabilidade
             const promises = rows.map(destinatario => {
                 return transporter.sendMail({
-                    from: `"SICASV Comunicados" <${process.env.EMAIL_USER}>`,
+                    from: `"SICASV Comunicados" <${emailUser}>`,
                     to: destinatario.email,
                     subject: assunto,
                     html: `
