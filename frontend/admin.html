@@ -7,51 +7,152 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { background-color: var(--bs-body-bg); transition: background-color 0.3s; }
-        .card-dashboard { border: none; box-shadow: 0 5px 15px rgba(0,0,0,0.05); border-radius: 10px; overflow: hidden; }
-        .header-admin { background: linear-gradient(135deg, #0f3d24 0%, #198754 100%); color: white; padding: 15px 0; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); }
+        :root {
+            --sidebar-width: 260px;
+            --primary-color: #0d6efd;
+        }
+        body { background-color: #f4f6f9; overflow-x: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #wrapper { display: flex; width: 100%; align-items: stretch; transition: all 0.3s; }
+        #sidebar-wrapper {
+            min-width: var(--sidebar-width); max-width: var(--sidebar-width);
+            background: #212529; color: #fff; min-height: 100vh;
+            display: flex; flex-direction: column; transition: all 0.3s;
+        }
+        .sidebar-heading { padding: 1.5rem; font-size: 1.5rem; font-weight: bold; text-align: center; background: rgba(0,0,0,0.1); border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .list-group-item { background-color: transparent; color: rgba(255,255,255,0.7); border: none; padding: 1rem 1.5rem; transition: all 0.2s; font-weight: 500; }
+        .list-group-item:hover, .list-group-item.active { background-color: rgba(255,255,255,0.1); color: #fff; border-left: 4px solid var(--primary-color); }
+        .list-group-item i { width: 25px; }
+        #page-content-wrapper { width: 100%; padding: 0; }
+        .top-navbar { background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.05); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .card-dashboard { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); background: #fff; overflow: hidden; }
+        .stat-card { border: none; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); transition: transform 0.3s; background: #fff; }
+        .stat-card:hover { transform: translateY(-5px); }
+        .stat-icon { width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; }
+        
+        [data-bs-theme="dark"] body { background-color: #121212; }
+        [data-bs-theme="dark"] .top-navbar, [data-bs-theme="dark"] .card-dashboard, [data-bs-theme="dark"] .stat-card { background-color: #212529; color: #fff; }
+        [data-bs-theme="dark"] .list-group-item.active { background-color: #343a40; }
+        
         .btn-action { margin-right: 5px; }
-        /* .table-hover tbody tr:hover { background-color: #f1f1f1; } Bootstrap handles this in dark mode */
-        .nav-tabs .nav-link.active { background-color: #e9ecef; border-color: #dee2e6 #dee2e6 #fff; font-weight: bold; color: #0056b3; }
-        [data-bs-theme="dark"] .nav-tabs .nav-link.active { background-color: #2b3035; border-color: #495057 #495057 #2b3035; color: #6ea8fe; }
-        .form-control:read-only { background-color: var(--bs-secondary-bg); cursor: default; }
-        .modal-header { background-color: #198754; color: white; }
-        .modal-title i { margin-right: 10px; }
+        .modal-header { background-color: var(--primary-color); color: white; }
+        .table thead th { font-weight: 600; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.5px; }
+        
+        /* Modo Compacto */
+        .table-compact td, .table-compact th { padding: 0.3rem 0.5rem !important; font-size: 0.85rem; }
+        .table-compact img { width: 30px !important; height: 30px !important; }
+        .table-compact .btn-action { padding: 0.15rem 0.4rem; font-size: 0.75rem; }
+
+        /* Ordenação */
+        .sortable { cursor: pointer; user-select: none; transition: background-color 0.2s; }
+        .sortable:hover { background-color: rgba(0,0,0,0.05); color: var(--primary-color); }
+        [data-bs-theme="dark"] .sortable:hover { background-color: rgba(255,255,255,0.1); }
     </style>
 </head>
 <body>
 
-    <!-- Cabeçalho -->
-    <header class="header-admin">
-        <div class="container d-flex justify-content-between align-items-center">
-            <h3 class="mb-0">
-                <i class="fas fa-cogs"></i> SICASV <span class="fs-6 text-light opacity-75">| Administração</span>
-                <span id="badgeMaster" class="badge bg-warning text-dark ms-2" style="display:none; font-size: 0.7rem;">MASTER</span>
-            </h3>
-            <div>
-                <button id="btnNovoAdmin" class="btn btn-outline-info btn-sm me-2" style="display: none;" onclick="abrirModalAdmin()"><i class="fas fa-user-shield"></i> Novo Admin</button>
-                <button class="btn btn-outline-danger btn-sm me-2" onclick="abrirLixeira()"><i class="fas fa-trash-restore"></i> Lixeira</button>
-                <button class="btn btn-outline-success btn-sm me-2" onclick="fazerBackup()"><i class="fas fa-download"></i> Backup BD</button>
-                <button class="btn btn-outline-danger btn-sm me-2" onclick="document.getElementById('inputRestore').click()"><i class="fas fa-upload"></i> Restaurar BD</button>
-                <input type="file" id="inputRestore" accept=".sql" style="display: none;" onchange="restaurarBackup(this)">
-                <button class="btn btn-outline-light btn-sm me-2" onclick="toggleTheme()" id="btnTheme"><i class="fas fa-moon"></i></button>
-                <button class="btn btn-outline-light btn-sm" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Sair</button>
+    <div class="d-flex" id="wrapper">
+        <!-- Sidebar -->
+        <div id="sidebar-wrapper">
+            <div class="sidebar-heading">
+                <i class="fas fa-id-card me-2"></i>SICASV
+            </div>
+            <div class="list-group list-group-flush my-3">
+                <a href="#" class="list-group-item list-group-item-action active" onclick="showSection('servidores', this)">
+                    <i class="fas fa-users me-2"></i>Servidores
+                </a>
+                <a href="#" id="menuAdminItem" class="list-group-item list-group-item-action" style="display: none;" onclick="showSection('admins', this)">
+                    <i class="fas fa-user-shield me-2"></i>Administradores
+                </a>
+                <div class="border-top my-3 mx-3 border-secondary opacity-25"></div>
+                <a href="#" class="list-group-item list-group-item-action" onclick="abrirLixeira()">
+                    <i class="fas fa-trash-restore me-2"></i>Lixeira
+                </a>
+                <a href="#" class="list-group-item list-group-item-action" onclick="fazerBackup()">
+                    <i class="fas fa-download me-2"></i>Backup BD
+                </a>
+                <a href="#" class="list-group-item list-group-item-action" onclick="document.getElementById('inputRestore').click()">
+                    <i class="fas fa-upload me-2"></i>Restaurar BD
+                </a>
+                <a href="#" class="list-group-item list-group-item-action text-danger mt-auto" onclick="logout()">
+                    <i class="fas fa-sign-out-alt me-2"></i>Sair
+                </a>
             </div>
         </div>
-    </header>
 
-    <div class="container">
-        <div class="card card-dashboard">
-            <div class="card-header py-3">
+        <!-- Page Content -->
+        <div id="page-content-wrapper">
+            <nav class="top-navbar">
+                <div class="d-flex align-items-center">
+                    <h4 class="m-0 fw-bold text-primary">Painel Administrativo</h4>
+                    <span id="badgeMaster" class="badge bg-warning text-dark ms-3" style="display:none;">MASTER</span>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <button class="btn btn-outline-secondary rounded-circle border-0" onclick="toggleTheme()" id="btnTheme"><i class="fas fa-moon"></i></button>
+                    <div class="dropdown">
+                        <a class="text-decoration-none dropdown-toggle text-reset fw-bold" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle fa-lg me-1"></i> Conta
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end shadow">
+                            <li><a class="dropdown-item" href="#" onclick="logout()">Sair</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </nav>
+
+            <div class="container-fluid px-4">
+                <input type="file" id="inputRestore" accept=".sql" style="display: none;" onchange="restaurarBackup(this)">
+                
+                <!-- Section Servidores -->
+                <div id="secServidores" class="fade show">
+                    <!-- Stats Row -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <div class="p-3 stat-card d-flex justify-content-between align-items-center">
+                                <div>
+                                    <p class="text-muted mb-1 small text-uppercase fw-bold">Total de Servidores</p>
+                                    <h3 class="fw-bold mb-0" id="statTotal">0</h3>
+                                </div>
+                                <div class="stat-icon bg-primary bg-opacity-10 text-primary">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 stat-card d-flex justify-content-between align-items-center">
+                                <div>
+                                    <p class="text-muted mb-1 small text-uppercase fw-bold">Cadastros Finalizados</p>
+                                    <h3 class="fw-bold mb-0 text-success" id="statFinalizados">-</h3>
+                                </div>
+                                <div class="stat-icon bg-success bg-opacity-10 text-success">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 stat-card d-flex justify-content-between align-items-center">
+                                <div>
+                                    <p class="text-muted mb-1 small text-uppercase fw-bold">Rascunhos</p>
+                                    <h3 class="fw-bold mb-0 text-warning" id="statRascunhos">-</h3>
+                                </div>
+                                <div class="stat-icon bg-warning bg-opacity-10 text-warning">
+                                    <i class="fas fa-pencil-alt"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card card-dashboard">
+                        <div class="card-header bg-transparent py-3 border-bottom">
                 <div class="row align-items-center">
                     <div class="col-md-4">
-                        <h5 class="mb-0"><i class="fas fa-users text-primary"></i> Servidores Cadastrados</h5>
+                                    <h5 class="mb-0 fw-bold"><i class="fas fa-list me-2"></i>Lista de Servidores</h5>
                     </div>
                     <div class="col-md-8 d-flex justify-content-end gap-2 align-items-center">
                         <div class="input-group" style="max-width: 300px;">
-                            <input type="text" class="form-control" id="searchInput" placeholder="Pesquisar..." oninput="filtrarServidores()">
-                            <span class="input-group-text bg-light"><i class="fas fa-search"></i></span>
+                                        <span class="input-group-text bg-transparent border-end-0"><i class="fas fa-search text-muted"></i></span>
+                                        <input type="text" class="form-control border-start-0 ps-0" id="searchInput" placeholder="Pesquisar..." oninput="filtrarServidores()">
                         </div>
+                        <button class="btn btn-outline-secondary" onclick="toggleCompactMode()" id="btnCompact" title="Modo Compacto"><i class="fas fa-compress"></i></button>
                         <button class="btn btn-outline-primary" onclick="toggleFiltros()" title="Filtros Avançados"><i class="fas fa-filter"></i></button>
                         <button class="btn btn-secondary" onclick="imprimirLista()"><i class="fas fa-print"></i> Imprimir</button>
                         
@@ -102,16 +203,16 @@
                 </div>
             </div>
             <div class="card-body p-0">
-                <div class="table-responsive">
+                            <div class="table-responsive" style="min-height: 300px;">
                     <table class="table table-hover table-striped mb-0 align-middle" id="tabelaServidores">
                         <thead class="table-light">
                             <tr>
                                 <th style="width: 60px;">Foto</th>
                                 <th class="text-center" style="width: 50px;" title="Status">St.</th>
-                                <th>Matrícula</th>
-                                <th>Nome</th>
+                                <th class="sortable" onclick="ordenar('matricula')">Matrícula <i class="fas fa-sort text-muted small ms-1" id="icon-matricula"></i></th>
+                                <th class="sortable" onclick="ordenar('nome')">Nome <i class="fas fa-sort-up text-primary small ms-1" id="icon-nome"></i></th>
                                 <th>CPF</th>
-                                <th>Cargo</th>
+                                <th class="sortable" onclick="ordenar('cargo')">Cargo <i class="fas fa-sort text-muted small ms-1" id="icon-cargo"></i></th>
                                 <th>Lotação</th>
                                 <th class="text-end">Ações</th>
                             </tr>
@@ -122,7 +223,7 @@
                     </table>
                 </div>
             </div>
-            <div class="card-footer d-flex justify-content-between align-items-center py-3">
+                        <div class="card-footer bg-transparent d-flex justify-content-between align-items-center py-3 border-top">
                 <span class="text-muted small" id="totalRegistros">Carregando...</span>
                 <nav>
                     <ul class="pagination pagination-sm mb-0">
@@ -133,16 +234,20 @@
                     </ul>
                 </nav>
             </div>
+                    </div>
         </div>
-    </div>
 
     <!-- Área Exclusiva Master: Gestão de Administradores -->
-    <div class="container mt-4" id="areaMaster" style="display: none;">
-        <div class="card card-dashboard border-warning">
-            <div class="card-header bg-warning bg-opacity-10 py-3">
+                <div id="secAdmins" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h3 class="fw-bold">Administração do Sistema</h3>
+                        <button id="btnNovoAdmin" class="btn btn-primary" onclick="abrirModalAdmin()"><i class="fas fa-user-plus me-2"></i>Novo Administrador</button>
+                    </div>
+                    <div class="card card-dashboard">
+                        <div class="card-header bg-transparent py-3">
                 <div class="row align-items-center">
                     <div class="col-md-12">
-                        <h5 class="mb-0 text-dark"><i class="fas fa-users-cog"></i> Gestão de Administradores</h5>
+                                    <h5 class="mb-0 fw-bold"><i class="fas fa-users-cog me-2"></i>Gestão de Administradores</h5>
                     </div>
                 </div>
             </div>
@@ -160,6 +265,9 @@
                         </thead>
                         <tbody id="listaAdmins"></tbody>
                     </table>
+                </div>
+            </div>
+        </div>
                 </div>
             </div>
         </div>
@@ -741,11 +849,22 @@
         let totalItems = 0;
         let searchTimeout;
         let currentStatus = 'finalizado';
+        let currentSort = 'nome';
+        let currentOrder = 'ASC';
 
         // Verificação de Segurança
-        const token = localStorage.getItem('adminToken');
-        const role = localStorage.getItem('adminRole');
-        const primeiroAcesso = localStorage.getItem('primeiroAcesso');
+        const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+        const role = localStorage.getItem('adminRole') || sessionStorage.getItem('adminRole');
+        const primeiroAcesso = localStorage.getItem('primeiroAcesso') || sessionStorage.getItem('primeiroAcesso');
+        const adminId = localStorage.getItem('adminId') || sessionStorage.getItem('adminId');
+
+        function showSection(section, element) {
+            document.getElementById('secServidores').style.display = section === 'servidores' ? 'block' : 'none';
+            document.getElementById('secAdmins').style.display = section === 'admins' ? 'block' : 'none';
+            
+            document.querySelectorAll('.list-group-item').forEach(el => el.classList.remove('active'));
+            if(element) element.classList.add('active');
+        }
 
         if (!token) {
             window.location.href = 'login.html';
@@ -753,9 +872,8 @@
 
         // Configuração para Master
         if (role === 'master') {
-            document.getElementById('btnNovoAdmin').style.display = 'inline-block';
+            document.getElementById('menuAdminItem').style.display = 'block';
             document.getElementById('badgeMaster').style.display = 'inline-block';
-            document.getElementById('areaMaster').style.display = 'block';
             carregarAdmins();
         }
 
@@ -772,7 +890,7 @@
         // Lógica para salvar a nova senha do primeiro acesso
         document.getElementById('formPrimeiroAcesso').addEventListener('submit', async function(e) {
             e.preventDefault();
-            const id = localStorage.getItem('adminId');
+            const id = adminId;
             const senha = document.getElementById('novaSenhaDefinitiva').value;
 
             try {
@@ -796,10 +914,10 @@
         });
 
         function logout() {
-            localStorage.removeItem('adminToken');
-            localStorage.removeItem('adminRole');
-            localStorage.removeItem('adminId');
-            localStorage.removeItem('primeiroAcesso');
+            ['adminToken', 'adminRole', 'adminId', 'primeiroAcesso'].forEach(key => {
+                localStorage.removeItem(key);
+                sessionStorage.removeItem(key);
+            });
             window.location.href = 'login.html';
         }
 
@@ -810,6 +928,26 @@
             element.classList.add('active');
             
             // Recarrega dados
+            carregarDadosAPI(1);
+        }
+
+        function ordenar(campo) {
+            if (currentSort === campo) {
+                currentOrder = currentOrder === 'ASC' ? 'DESC' : 'ASC';
+            } else {
+                currentSort = campo;
+                currentOrder = 'ASC';
+            }
+            
+            // Atualiza ícones visuais
+            ['matricula', 'nome', 'cargo'].forEach(c => {
+                const icon = document.getElementById(`icon-${c}`);
+                icon.className = 'fas fa-sort text-muted small ms-1'; // Reset
+                if (c === currentSort) {
+                    icon.className = `fas fa-sort-${currentOrder === 'ASC' ? 'up' : 'down'} text-primary small ms-1`;
+                }
+            });
+
             carregarDadosAPI(1);
         }
 
@@ -829,7 +967,9 @@
                 cargo: cargo,
                 secretaria: secretaria,
                 tipoAdmissao: tipoAdmissao,
-                status: currentStatus
+                status: currentStatus,
+                sortBy: currentSort,
+                order: currentOrder
             });
 
             try {
@@ -838,6 +978,7 @@
                 
                 servidores = result.data;
                 totalItems = result.total;
+                document.getElementById('statTotal').innerText = totalItems; // Atualiza card de estatística
                 carregarServidores(servidores);
                 atualizarPaginacao();
             } catch (error) {
@@ -1146,7 +1287,7 @@
 
                         const response = await fetch(`http://localhost:3000/api/servidor/${id}/anexo`, {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'x-admin-id': localStorage.getItem('adminId') },
+                            headers: { 'Content-Type': 'application/json', 'x-admin-id': adminId },
                             body: JSON.stringify({ nome, tipo, conteudo })
                         });
 
@@ -1493,7 +1634,7 @@
             try {
                 const response = await fetch(`http://localhost:3000/api/servidor/${id}`, {
                     method: 'DELETE',
-                    headers: { 'x-admin-id': localStorage.getItem('adminId') }
+                    headers: { 'x-admin-id': adminId }
                 });
                 const result = await response.json();
                 if (response.ok) {
@@ -1874,7 +2015,7 @@
                     method: 'PUT',
                     headers: { 
                         'Content-Type': 'application/json',
-                        'x-admin-id': localStorage.getItem('adminId')
+                        'x-admin-id': adminId
                     },
                     body: JSON.stringify({ titular, conjuge, dependentes, anexos: listaAnexosEdicao })
                 });
@@ -1962,13 +2103,13 @@
 
         async function restaurarServidor(id) {
             if(!confirm('Deseja restaurar este servidor?')) return;
-            await fetch(`http://localhost:3000/api/servidor/${id}/restaurar`, { method: 'PUT', headers: { 'x-admin-id': localStorage.getItem('adminId') } });
+            await fetch(`http://localhost:3000/api/servidor/${id}/restaurar`, { method: 'PUT', headers: { 'x-admin-id': adminId } });
             abrirLixeira(); carregarDadosAPI();
         }
 
         async function excluirPermanente(id) {
             if(!confirm('ATENÇÃO: Isso excluirá o registro PERMANENTEMENTE. Continuar?')) return;
-            await fetch(`http://localhost:3000/api/lixeira/${id}`, { method: 'DELETE', headers: { 'x-admin-id': localStorage.getItem('adminId') } });
+            await fetch(`http://localhost:3000/api/lixeira/${id}`, { method: 'DELETE', headers: { 'x-admin-id': adminId } });
             abrirLixeira();
         }
 
@@ -1983,6 +2124,18 @@
             document.getElementById('filtroTipoAdmissao').value = '';
             document.getElementById('searchInput').value = '';
             carregarDadosAPI(1);
+        }
+
+        function toggleCompactMode() {
+            const table = document.getElementById('tabelaServidores');
+            const btn = document.getElementById('btnCompact');
+            table.classList.toggle('table-compact');
+            
+            if (table.classList.contains('table-compact')) {
+                btn.classList.replace('btn-outline-secondary', 'btn-secondary');
+            } else {
+                btn.classList.replace('btn-secondary', 'btn-outline-secondary');
+            }
         }
 
         async function fazerBackup() {

@@ -289,6 +289,8 @@ function iniciarServidor() {
             const secretaria = req.query.secretaria || '';
             const tipoAdmissao = req.query.tipoAdmissao || '';
             const status = req.query.status || 'finalizado'; // Padrão: finalizado
+            const sortBy = req.query.sortBy || 'nome';
+            const order = req.query.order || 'ASC';
             const offset = (page - 1) * limit;
 
             let query = 'SELECT id, matricula, nome, cpf, cargo, lotacao, status FROM titulares';
@@ -329,7 +331,12 @@ function iniciarServidor() {
                 countQuery += whereClause;
             }
 
-            query += ' ORDER BY nome ASC';
+            // Validação de segurança para ordenação
+            const validSorts = ['nome', 'matricula', 'cargo'];
+            const sortField = validSorts.includes(sortBy) ? sortBy : 'nome';
+            const sortOrder = order.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
+            
+            query += ` ORDER BY ${sortField} ${sortOrder}`;
             
             // Se limit for maior que 0, aplica paginação. Se for -1 (exportação), pega tudo.
             if (limit > 0) {
