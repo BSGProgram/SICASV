@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # SICASV - Sistema de Cadastro dos Servidores de Venturosa
 
 Sistema web desenvolvido para o gerenciamento e cadastro de servidores públicos da Prefeitura de Venturosa.
