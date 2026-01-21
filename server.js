@@ -157,7 +157,9 @@ function conectarAoBancoDefinitivo() {
             email VARCHAR(255) UNIQUE NOT NULL,
             senha VARCHAR(255) NOT NULL,
             role ENUM('master', 'admin') DEFAULT 'admin',
-            primeiro_acesso TINYINT(1) DEFAULT 1
+            primeiro_acesso TINYINT(1) DEFAULT 1,
+            reset_token VARCHAR(255) DEFAULT NULL,
+            reset_expires DATETIME DEFAULT NULL
         );
 
         CREATE TABLE IF NOT EXISTS titulares (
@@ -266,32 +268,44 @@ function conectarAoBancoDefinitivo() {
             db.query("ALTER TABLE titulares ADD COLUMN foto_perfil LONGTEXT", (errFoto) => {
                 if (errFoto && errFoto.code !== 'ER_DUP_FIELDNAME') console.error('Erro migration foto_perfil:', errFoto);
 
-            db.query("ALTER TABLE titulares ADD COLUMN status ENUM('rascunho', 'finalizado') DEFAULT 'finalizado'", (errStatus) => {
-                if (errStatus && errStatus.code !== 'ER_DUP_FIELDNAME') console.error('Erro migration status:', errStatus);
+                db.query("ALTER TABLE titulares ADD COLUMN status ENUM('rascunho', 'finalizado') DEFAULT 'finalizado'", (errStatus) => {
+                    if (errStatus && errStatus.code !== 'ER_DUP_FIELDNAME') console.error('Erro migration status:', errStatus);
 
-            // Migração para Esqueci Minha Senha
-            db.query("ALTER TABLE administradores ADD COLUMN reset_token VARCHAR(255) DEFAULT NULL", (errToken) => {
-                if (errToken && errToken.code !== 'ER_DUP_FIELDNAME') console.error('Erro migration reset_token:', errToken);
-            
-            db.query("ALTER TABLE administradores ADD COLUMN reset_expires DATETIME DEFAULT NULL", (errExpires) => {
-                if (errExpires && errExpires.code !== 'ER_DUP_FIELDNAME') console.error('Erro migration reset_expires:', errExpires);
+                    // Migração para colunas de administradores (se a tabela foi criada antes da adição destas colunas)
+                    db.query("ALTER TABLE administradores ADD COLUMN nome VARCHAR(100)", (errNome) => {
+                        if (errNome && errNome.code !== 'ER_DUP_FIELDNAME') console.error('Erro migration admin nome:', errNome);
+                        db.query("ALTER TABLE administradores ADD COLUMN cpf VARCHAR(14)", (errCpf) => {
+                            if (errCpf && errCpf.code !== 'ER_DUP_FIELDNAME') console.error('Erro migration admin cpf:', errCpf);
+                            db.query("ALTER TABLE administradores ADD COLUMN telefone VARCHAR(20)", (errTelefone) => {
+                                if (errTelefone && errTelefone.code !== 'ER_DUP_FIELDNAME') console.error('Erro migration admin telefone:', errTelefone);
 
-            // Garante a criação do índice UNIQUE para bancos já existentes (migração)
-            db.query("ALTER TABLE titulares ADD UNIQUE INDEX idx_cpf_unique (cpf)", (errIndex) => {
-                if (errIndex && errIndex.code === 'ER_DUP_ENTRY') {
-                    console.warn('⚠️ AVISO: CPFs duplicados encontrados no banco. O índice UNIQUE não pôde ser aplicado.');
-                }
+                                // Migração para Esqueci Minha Senha
+                                db.query("ALTER TABLE administradores ADD COLUMN reset_token VARCHAR(255) DEFAULT NULL", (errToken) => {
+                                    if (errToken && errToken.code !== 'ER_DUP_FIELDNAME') console.error('Erro migration reset_token:', errToken);
+                                
+                                    db.query("ALTER TABLE administradores ADD COLUMN reset_expires DATETIME DEFAULT NULL", (errExpires) => {
+                                        if (errExpires && errExpires.code !== 'ER_DUP_FIELDNAME') console.error('Erro migration reset_expires:', errExpires);
+                                        else console.log('✅ Colunas de recuperação de senha verificadas.');
 
-                // Cria usuário Master padrão
-                const sqlMaster = "INSERT IGNORE INTO administradores (email, senha, role, primeiro_acesso) VALUES ('admin@sicasv.com', 'master123', 'master', 0)";
-                db.query(sqlMaster, (err) => {
-                    if (!err) console.log("✅ Usuário Master pronto: admin@sicasv.com / master123");
-                    iniciarServidor();
+                                        // Garante a criação do índice UNIQUE para bancos já existentes (migração)
+                                        db.query("ALTER TABLE titulares ADD UNIQUE INDEX idx_cpf_unique (cpf)", (errIndex) => {
+                                            if (errIndex && errIndex.code === 'ER_DUP_ENTRY') {
+                                                console.warn('⚠️ AVISO: CPFs duplicados encontrados no banco. O índice UNIQUE não pôde ser aplicado.');
+                                            }
+
+                                            // Cria usuário Master padrão
+                                            const sqlMaster = "INSERT IGNORE INTO administradores (email, senha, role, primeiro_acesso) VALUES ('admin@sicasv.com', 'master123', 'master', 0)";
+                                            db.query(sqlMaster, (err) => {
+                                                if (!err) console.log("✅ Usuário Master pronto: admin@sicasv.com / master123");
+                                                iniciarServidor();
+                                            });
+                                        });
+                                    });
+                                });
+                            }); // Fecha a query do telefone
+                        });
+                    });
                 });
-            });
-            });
-            });
-            });
             });
         });
     });
@@ -789,17 +803,29 @@ function iniciarServidor() {
         const { email } = req.body;
         
         db.query('SELECT id, nome FROM administradores WHERE email = ?', [email], async (err, results) => {
-            if (err) return res.status(500).json({ error: 'Erro interno.' });
+            if (err) {
+                console.error('Erro ao buscar admin para reset:', err);
+                return res.status(500).json({ error: 'Erro interno no banco de dados.' });
+            }
             if (results.length === 0) return res.status(404).json({ error: 'Email não encontrado.' });
 
             const admin = results[0];
             const token = crypto.randomBytes(20).toString('hex');
-            const expires = new Date(Date.now() + 3600000); // 1 hora de validade
+            
+            // Formata data para MySQL (YYYY-MM-DD HH:MM:SS)
+            const now = new Date(Date.now() + 3600000); // 1 hora
+            const expires = now.toISOString().slice(0, 19).replace('T', ' ');
 
             db.query('UPDATE administradores SET reset_token = ?, reset_expires = ? WHERE id = ?', [token, expires, admin.id], async (err) => {
-                if (err) return res.status(500).json({ error: 'Erro ao gerar token.' });
+                if (err) {
+                    console.error('❌ ERRO AO SALVAR TOKEN NO BANCO:', err);
+                    return res.status(500).json({ error: 'Erro ao gerar token: ' + err.message });
+                }
 
                 const link = `http://localhost:3000/redefinir-senha.html?token=${token}`;
+
+                // LOG PARA TESTES: Exibe o link no terminal para facilitar o teste sem envio de email real
+                console.log('\n🔗 [TESTE] Link de Redefinição:', link, '\n');
 
                 try {
                     await transporter.sendMail({
